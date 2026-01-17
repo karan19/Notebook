@@ -63,7 +63,7 @@ export default function NotebookPage({ params }: { params: Promise<{ id: string 
                                 value={title}
                                 onChange={(e) => handleTitleChange(e.target.value)}
                                 maxLength={25}
-                                className="h-10 py-0 px-2 border-transparent hover:bg-gray-50 focus:bg-white focus:border-gray-100 font-bold text-2xl w-full max-w-md transition-all bg-transparent shadow-none focus-visible:ring-0 rounded-lg"
+                                className="h-9 py-0 px-2 border-transparent hover:bg-gray-50 focus:bg-white focus:border-gray-100 font-bold text-lg w-full max-w-sm transition-all bg-transparent shadow-none focus-visible:ring-0 rounded-lg"
                                 placeholder="Untitled Selection"
                             />
                         </div>

@@ -54,17 +54,19 @@ export function Editor({ id }: EditorProps) {
 
     return (
         <div className="flex flex-col h-full bg-[#FAFAFA] overflow-hidden">
-            <div className="flex-1 overflow-y-auto p-12 pt-8 flex justify-center scroll-smooth">
-                <div className="w-full max-w-4xl bg-white shadow-[0_10px_40px_rgba(0,0,0,0.04)] rounded-md border border-gray-100 min-h-[1056px] px-8 py-12">
-                    <BlockNoteView
-                        editor={editor}
-                        theme="light"
-                        onChange={() => {
-                            // Debounced save logic
-                            const html = editor.blocksToFullHTML(editor.document);
-                            saveContent(id, html);
-                        }}
-                    />
+            <div className="flex-1 overflow-y-auto p-12 pt-8 flex justify-center scroll-smooth pb-32">
+                <div className="w-full max-w-4xl bg-white shadow-[0_10px_40px_rgba(0,0,0,0.04)] rounded-md border border-gray-100 min-h-[1056px] px-8 py-12 overflow-hidden">
+                    {isLoaded && (
+                        <BlockNoteView
+                            editor={editor}
+                            theme="light"
+                            onChange={() => {
+                                // Debounced save logic
+                                const html = editor.blocksToFullHTML(editor.document);
+                                saveContent(id, html);
+                            }}
+                        />
+                    )}
                 </div>
             </div>
         </div>
