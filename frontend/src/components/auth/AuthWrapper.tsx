@@ -1,6 +1,6 @@
 "use client";
 
-import { Authenticator, useTheme, View, Text, Image, useAuthenticator } from '@aws-amplify/ui-react';
+import { Authenticator, useTheme, View, Text, useAuthenticator } from '@aws-amplify/ui-react';
 import '@aws-amplify/ui-react/styles.css';
 import { Notebook } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -17,6 +17,12 @@ const components = {
             </div>
         );
     },
+    // Hide default footer links (Forgot Password)
+    SignIn: {
+        Footer() {
+            return <></>;
+        },
+    },
 };
 
 const formFields = {
@@ -32,7 +38,30 @@ const formFields = {
     },
 };
 
-export function AuthWrapper({ children }: { children: React.ReactNode }) {
+function AuthContent({ children }: { children: React.ReactNode }) {
+    const { authStatus } = useAuthenticator(context => [context.authStatus]);
+
+    // If authenticated, render ONLY the children (the app), bypassing the split-screen layout
+    if (authStatus === 'authenticated') {
+        return <>{children}</>;
+    }
+
+    // Creating a motion component for the SVG elements
+    const draw = {
+        hidden: { pathLength: 0, opacity: 0 },
+        visible: (i: number) => {
+            const delay = 1 + i * 0.5;
+            return {
+                pathLength: 1,
+                opacity: 1,
+                transition: {
+                    pathLength: { delay, type: "spring", duration: 1.5, bounce: 0 },
+                    opacity: { delay, duration: 0.01 }
+                }
+            };
+        }
+    };
+
     return (
         <div className="min-h-screen flex bg-white overflow-hidden">
             {/* Left: Branding Panel (Desktop Only) */}
@@ -56,25 +85,73 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, ease: "easeOut", delay: 0.2 }}
-                        className="space-y-4 text-center lg:text-left"
+                        className="space-y-4 lg:text-left flex flex-col justify-center"
                     >
-                        <motion.div
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            className="w-12 h-12 bg-white/10 backdrop-blur-xl rounded-xl flex items-center justify-center border border-white/20 shadow-2xl mx-auto lg:mx-0"
-                        >
-                            <Notebook className="w-6 h-6 text-white" />
-                        </motion.div>
-                        <h2 className="text-5xl font-extrabold tracking-tight leading-tight">
-                            Elevate your <br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-200 to-purple-200">digital notes.</span>
-                        </h2>
-                        <p className="text-blue-100/70 text-lg font-medium leading-relaxed">
-                            A workspace designed for deep focus, structured clarity, and seamless cloud synchronization.
-                        </p>
+                        <div className="flex items-center gap-8 mb-4">
+                            {/* Forming SVG Animation */}
+                            <motion.svg
+                                width="120"
+                                height="120"
+                                viewBox="0 0 256 256"
+                                initial="hidden"
+                                animate="visible"
+                                className="text-white/90"
+                            >
+                                {/* Cover */}
+                                <motion.rect
+                                    x="40" y="24" width="176" height="208" rx="16"
+                                    fill="transparent"
+                                    stroke="currentColor"
+                                    strokeWidth="4"
+                                    variants={draw}
+                                    custom={0}
+                                />
+                                {/* Spine */}
+                                <motion.rect
+                                    x="40" y="24" width="28" height="208" rx="12"
+                                    fill="transparent"
+                                    stroke="currentColor"
+                                    strokeWidth="4"
+                                    variants={draw}
+                                    custom={0.5}
+                                />
+                                {/* Rings */}
+                                {[0, 1, 2, 3].map((i) => (
+                                    <motion.circle
+                                        key={i}
+                                        cx="54" cy={64 + i * 32} r="6"
+                                        fill="currentColor"
+                                        initial={{ opacity: 0, scale: 0 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        transition={{ delay: 2 + i * 0.1, duration: 0.3 }}
+                                    />
+                                ))}
+
+                                {/* Lines */}
+                                {[0, 1, 2, 3].map((i) => (
+                                    <motion.line
+                                        key={i}
+                                        x1="88" y1={72 + i * 32} x2="200" y2={72 + i * 32}
+                                        stroke="currentColor"
+                                        strokeWidth="3"
+                                        variants={draw}
+                                        custom={1 + i * 0.2}
+                                    />
+                                ))}
+                            </motion.svg>
+                        </div>
+
+                        <div>
+                            <h2 className="text-5xl font-extrabold tracking-tight leading-tight">
+                                Elevate your <br />
+                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-200 to-purple-200">digital notes.</span>
+                            </h2>
+                            <p className="text-blue-100/70 text-lg font-medium leading-relaxed mt-4">
+                                A workspace designed for deep focus, structured clarity, and seamless cloud synchronization.
+                            </p>
+                        </div>
                     </motion.div>
                 </div>
-
             </div>
 
             {/* Right: Interaction Area */}
@@ -85,17 +162,16 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, ease: "easeOut", delay: 0.4 }}
                     >
+                        {/* We hide children here because Authenticator handles its own children rendering logic internally, 
+                            but we only want to show the 'children' prop when authenticated, which we handle above. 
+                            So here, the 'children' passed to Authenticator creates the confusing nesting. 
+                            We simply don't pass children to Authenticator here. Authenticator will just show the login form. 
+                        */}
                         <Authenticator
                             components={components}
                             formFields={formFields}
                             hideSignUp={true}
-                        >
-                            {({ signOut, user }) => (
-                                <main className="w-full h-full">
-                                    {children}
-                                </main>
-                            )}
-                        </Authenticator>
+                        />
                     </motion.div>
                 </div>
             </div>
@@ -163,10 +239,20 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
                 border-color: #3b82f6 !important;
                 box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1) !important;
             }
+            /* Hide forgot password just in case the component override misses something */
             [data-amplify-authenticator-forgotpassword] {
                 display: none !important;
             }
         `}</style>
         </div>
+    );
+}
+
+// Main component with Provider
+export function AuthWrapper({ children }: { children: React.ReactNode }) {
+    return (
+        <Authenticator.Provider>
+            <AuthContent>{children}</AuthContent>
+        </Authenticator.Provider>
     );
 }
