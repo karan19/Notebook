@@ -5,6 +5,8 @@ import '@aws-amplify/ui-react/styles.css';
 import { Notebook } from 'lucide-react';
 import { motion } from 'motion/react';
 
+import { FullPageSpinner } from "@/components/ui/loading-spinner";
+
 const components = {
     Header() {
         return (
@@ -40,6 +42,10 @@ const formFields = {
 
 function AuthContent({ children }: { children: React.ReactNode }) {
     const { authStatus } = useAuthenticator(context => [context.authStatus]);
+
+    if (authStatus === 'configuring') {
+        return <FullPageSpinner />;
+    }
 
     // If authenticated, render ONLY the children (the app), bypassing the split-screen layout
     if (authStatus === 'authenticated') {

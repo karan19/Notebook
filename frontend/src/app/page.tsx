@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthenticator } from '@aws-amplify/ui-react';
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { motion, AnimatePresence } from "motion/react";
 
 import {
@@ -96,7 +97,11 @@ export default function Dashboard() {
             </p>
           </div>
 
-          {filteredNotebooks.length === 0 ? (
+          {loading ? (
+            <div className="flex justify-center items-center h-64">
+              <LoadingSpinner size={40} className="text-gray-900" />
+            </div>
+          ) : filteredNotebooks.length === 0 ? (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}

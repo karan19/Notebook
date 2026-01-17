@@ -7,6 +7,8 @@ import "@blocknote/mantine/style.css";
 import { useNotebookStore } from "@/lib/store";
 import { useEffect, useState, useMemo } from "react";
 
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+
 interface EditorProps {
     id: string;
 }
@@ -42,21 +44,27 @@ export function Editor({ id }: EditorProps) {
         return null;
     }
 
+    if (!isLoaded) {
+        return (
+            <div className="flex h-full items-center justify-center">
+                <LoadingSpinner size={40} className="text-gray-300" />
+            </div>
+        );
+    }
+
     return (
         <div className="flex flex-col h-full bg-[#FAFAFA] overflow-hidden">
             <div className="flex-1 overflow-y-auto p-12 pt-8 flex justify-center scroll-smooth">
                 <div className="w-full max-w-4xl bg-white shadow-[0_10px_40px_rgba(0,0,0,0.04)] rounded-md border border-gray-100 min-h-[1056px] px-8 py-12">
-                    {isLoaded && (
-                        <BlockNoteView
-                            editor={editor}
-                            theme="light"
-                            onChange={() => {
-                                // Debounced save logic
-                                const html = editor.blocksToFullHTML(editor.document);
-                                saveContent(id, html);
-                            }}
-                        />
-                    )}
+                    <BlockNoteView
+                        editor={editor}
+                        theme="light"
+                        onChange={() => {
+                            // Debounced save logic
+                            const html = editor.blocksToFullHTML(editor.document);
+                            saveContent(id, html);
+                        }}
+                    />
                 </div>
             </div>
         </div>

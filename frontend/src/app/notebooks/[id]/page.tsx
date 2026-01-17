@@ -9,6 +9,8 @@ import { useNotebookStore } from "@/lib/store";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { FullPageSpinner } from "@/components/ui/loading-spinner";
+
 export default function NotebookPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     const router = useRouter();
@@ -30,14 +32,7 @@ export default function NotebookPage({ params }: { params: Promise<{ id: string 
     }, [id, getNotebook]);
 
     if (loading) {
-        return (
-            <div className="flex items-center justify-center h-screen bg-[#F8F9FA]">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-8 h-8 border-4 border-black border-t-transparent rounded-full animate-spin" />
-                    <p className="text-gray-400 text-sm font-medium">Loading your thoughts...</p>
-                </div>
-            </div>
-        );
+        return <FullPageSpinner />;
     }
 
     if (!notebook) {
