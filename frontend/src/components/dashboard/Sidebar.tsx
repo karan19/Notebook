@@ -42,7 +42,27 @@ export function Sidebar() {
                     className="w-8 h-8 bg-black rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-black/20 cursor-pointer hover:scale-105 transition-transform"
                     onClick={() => { setFilter('all'); router.push('/'); }}
                 >
-                    N
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 256 256"
+                        fill="none"
+                        className="w-5 h-5"
+                    >
+                        {/* Cover */}
+                        <rect x="40" y="24" width="176" height="208" rx="16" fill="white" stroke="white" strokeWidth="4" />
+                        {/* Spine */}
+                        <rect x="40" y="24" width="28" height="208" rx="12" fill="white" stroke="white" strokeWidth="4" />
+                        {/* Rings */}
+                        <circle cx="54" cy="64" r="6" fill="black" />
+                        <circle cx="54" cy="96" r="6" fill="black" />
+                        <circle cx="54" cy="128" r="6" fill="black" />
+                        <circle cx="54" cy="160" r="6" fill="black" />
+                        {/* Lines */}
+                        <line x1="88" y1="72" x2="200" y2="72" stroke="black" strokeWidth="3" />
+                        <line x1="88" y1="104" x2="200" y2="104" stroke="black" strokeWidth="3" />
+                        <line x1="88" y1="136" x2="200" y2="136" stroke="black" strokeWidth="3" />
+                        <line x1="88" y1="168" x2="200" y2="168" stroke="black" strokeWidth="3" />
+                    </svg>
                 </div>
                 <span className="font-bold text-gray-900 text-lg tracking-tight">Notebook</span>
             </div>
