@@ -157,14 +157,37 @@ export const useNotebookStore = create<NotebookStore>((set, get) => ({
     loadContent: async (id) => {
         try {
             // 1. Get Download URL
+            console.log(`[Store] Requesting download URL for notebook: ${id}`);
             const urlResult = await getClient().graphql({
                 query: queries.getDownloadUrl,
                 variables: { id }
             }) as any;
-            const downloadUrl = urlResult.data.getDownloadUrl;
+
+            if (urlResult.errors) {
+                console.error("[Store] AppSync errors for getDownloadUrl:", urlResult.errors);
+                return "";
+            }
+
+            const downloadUrl = urlResult.data?.getDownloadUrl;
+            if (!downloadUrl) {
+                console.error("[Store] No download URL returned from AppSync");
+                return "";
+            }
 
             // 2. Fetch from S3
             const response = await fetch(downloadUrl);
+
+            if (response.status === 404 || response.status === 403) {
+                // If the file doesn't exist yet, it's a new notebook
+                console.log("[Store] Content not found in S3 (likely a new notebook), returning empty.");
+                return "";
+            }
+
+            if (!response.ok) {
+                console.error(`[Store] S3 Fetch failed with status ${response.status}:`, await response.text());
+                return "";
+            }
+
             const html = await response.text();
 
             // 3. Cache in store
@@ -175,8 +198,10 @@ export const useNotebookStore = create<NotebookStore>((set, get) => ({
             }));
 
             return html;
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error loading content from S3:", error);
+            // Log more details if it's a TypeError or similar
+            if (error.message) console.error("Error Message:", error.message);
             return "";
         }
     },
