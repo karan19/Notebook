@@ -53,9 +53,7 @@ export function Editor({ id }: EditorProps) {
                             onChange={() => {
                                 // Debounced save logic
                                 const html = editor.blocksToFullHTML(editor.document);
-                                html.then(content => {
-                                    saveContent(id, content);
-                                });
+                                saveContent(id, html);
                             }}
                         />
                     )}
