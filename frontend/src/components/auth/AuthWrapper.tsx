@@ -137,6 +137,9 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
                 border-color: #3b82f6 !important;
                 box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1) !important;
             }
+            [data-amplify-authenticator-forgotpassword] {
+                display: none !important;
+            }
         `}</style>
         </div>
     );
