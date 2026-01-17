@@ -76,7 +76,7 @@ export function Editor({ id }: EditorProps) {
         <div className="flex flex-col h-full bg-[#f0f0f0] overflow-hidden">
             <div className="flex-1 overflow-y-auto p-8 flex justify-center scroll-smooth pb-32">
                 <div
-                    className="w-full max-w-[850px] bg-white shadow-xl min-h-[1100px] overflow-hidden relative"
+                    className="w-full max-w-[850px] bg-white shadow-xl min-h-[1100px] relative"
                     style={{
                         // Visual Page Breaks: White page (1056px) + Grey gap (20px)
                         backgroundImage: 'repeating-linear-gradient(to bottom, white 0px, white 1056px, #f0f0f0 1056px, #f0f0f0 1080px)'
