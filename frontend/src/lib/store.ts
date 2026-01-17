@@ -3,7 +3,13 @@ import { generateClient } from 'aws-amplify/api';
 import * as queries from './graphql';
 import * as mutations from './graphql';
 
-const client = generateClient();
+let client: any = null;
+const getClient = () => {
+    if (!client) {
+        client = generateClient();
+    }
+    return client;
+};
 
 export interface Notebook {
     id: string;
@@ -34,7 +40,7 @@ export const useNotebookStore = create<NotebookStore>((set, get) => ({
     fetchNotebooks: async () => {
         set({ loading: true });
         try {
-            const result = await client.graphql({ query: queries.listNotebooks }) as any;
+            const result = await getClient().graphql({ query: queries.listNotebooks }) as any;
             const items = result.data.listNotebooks || [];
             set({ notebooks: items, loading: false });
         } catch (error) {
@@ -45,7 +51,7 @@ export const useNotebookStore = create<NotebookStore>((set, get) => ({
 
     addNotebook: async (title = "Untitled Document") => {
         try {
-            const result = await client.graphql({
+            const result = await getClient().graphql({
                 query: mutations.createNotebook,
                 variables: { title }
             }) as any;
@@ -69,7 +75,7 @@ export const useNotebookStore = create<NotebookStore>((set, get) => ({
         }));
 
         try {
-            await client.graphql({
+            await getClient().graphql({
                 query: mutations.updateNotebook,
                 variables: {
                     id,
@@ -90,7 +96,7 @@ export const useNotebookStore = create<NotebookStore>((set, get) => ({
         }));
 
         try {
-            await client.graphql({
+            await getClient().graphql({
                 query: mutations.deleteNotebook,
                 variables: { id }
             });
@@ -104,7 +110,7 @@ export const useNotebookStore = create<NotebookStore>((set, get) => ({
         if (existing && existing.content) return existing;
 
         try {
-            const result = await client.graphql({
+            const result = await getClient().graphql({
                 query: queries.getNotebook,
                 variables: { id }
             }) as any;
@@ -124,7 +130,7 @@ export const useNotebookStore = create<NotebookStore>((set, get) => ({
     saveContent: async (id, html) => {
         try {
             // 1. Get Upload URL
-            const urlResult = await client.graphql({
+            const urlResult = await getClient().graphql({
                 query: queries.getUploadUrl,
                 variables: { id }
             }) as any;
@@ -151,7 +157,7 @@ export const useNotebookStore = create<NotebookStore>((set, get) => ({
     loadContent: async (id) => {
         try {
             // 1. Get Download URL
-            const urlResult = await client.graphql({
+            const urlResult = await getClient().graphql({
                 query: queries.getDownloadUrl,
                 variables: { id }
             }) as any;
