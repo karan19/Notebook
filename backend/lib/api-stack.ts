@@ -72,16 +72,17 @@ export class NotebookApiStack extends cdk.Stack {
       typeName: 'Mutation',
       fieldName: 'createNotebook',
       requestMappingTemplate: appsync.MappingTemplate.fromString(`
+        #set(\$id = \$util.autoId())
         {
           "version": "2018-05-29",
           "operation": "PutItem",
           "key": {
-            "id": \$util.dynamodb.toDynamoDBJson(\$util.autoId())
+            "id": \$util.dynamodb.toDynamoDBJson(\$id)
           },
           "attributeValues": {
-            "title": \$util.dynamodb.toDynamoDBJson(\$ctx.args.title),
+            "title": \$util.dynamodb.toDynamoDBJson(\$util.defaultIfNullOrEmpty(\$ctx.args.title, "Untitled Document")),
             "isFavorite": \$util.dynamodb.toDynamoDBJson(false),
-            "contentKey": \$util.dynamodb.toDynamoDBJson("notes/\$util.autoId().html"),
+            "contentKey": \$util.dynamodb.toDynamoDBJson("notes/\${id}.html"),
             "createdAt": \$util.dynamodb.toDynamoDBJson(\$util.time.nowEpochMilliSeconds()),
             "lastEditedAt": \$util.dynamodb.toDynamoDBJson(\$util.time.nowEpochMilliSeconds())
           }
