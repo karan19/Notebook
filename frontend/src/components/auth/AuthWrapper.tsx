@@ -2,7 +2,7 @@
 
 import { Authenticator, useTheme, View, Text, Image, useAuthenticator } from '@aws-amplify/ui-react';
 import '@aws-amplify/ui-react/styles.css';
-import { Notebook, PenTool, Zap, ShieldCheck } from 'lucide-react';
+import { Notebook } from 'lucide-react';
 
 const components = {
     Header() {
@@ -29,20 +29,6 @@ const formFields = {
             label: 'Password'
         }
     },
-    signUp: {
-        email: {
-            order: 1,
-            placeholder: 'alex@example.com'
-        },
-        password: {
-            order: 2,
-            placeholder: 'Create a strong password'
-        },
-        confirm_password: {
-            order: 3,
-            placeholder: 'Confirm your password'
-        }
-    },
 };
 
 export function AuthWrapper({ children }: { children: React.ReactNode }) {
@@ -54,9 +40,9 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
                 <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-400/20 rounded-full blur-[120px] animate-pulse" />
                 <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-400/20 rounded-full blur-[120px] animate-pulse [animation-delay:2s]" />
 
-                <div className="relative z-10 max-w-lg w-full space-y-12">
-                    <div className="space-y-4">
-                        <div className="w-12 h-12 bg-white/10 backdrop-blur-xl rounded-xl flex items-center justify-center border border-white/20 shadow-2xl">
+                <div className="relative z-10 max-w-lg w-full">
+                    <div className="space-y-4 text-center lg:text-left">
+                        <div className="w-12 h-12 bg-white/10 backdrop-blur-xl rounded-xl flex items-center justify-center border border-white/20 shadow-2xl mx-auto lg:mx-0">
                             <Notebook className="w-6 h-6 text-white" />
                         </div>
                         <h2 className="text-5xl font-extrabold tracking-tight leading-tight">
@@ -67,34 +53,8 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
                             A workspace designed for deep focus, structured clarity, and seamless cloud synchronization.
                         </p>
                     </div>
-
-                    <div className="grid gap-6">
-                        <div className="p-6 rounded-3xl bg-white/5 backdrop-blur-md border border-white/10 flex items-start gap-4 hover:bg-white/10 transition-colors group">
-                            <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center shrink-0 border border-blue-400/20 group-hover:scale-110 transition-transform">
-                                <PenTool className="w-5 h-5 text-blue-200" />
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-white mb-1">Block-Based Editing</h3>
-                                <p className="text-blue-100/50 text-sm">Experience the freedom of modular writing with our advanced block editor.</p>
-                            </div>
-                        </div>
-
-                        <div className="p-6 rounded-3xl bg-white/5 backdrop-blur-md border border-white/10 flex items-start gap-4 hover:bg-white/10 transition-colors group">
-                            <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center shrink-0 border border-purple-400/20 group-hover:scale-110 transition-transform">
-                                <ShieldCheck className="w-5 h-5 text-purple-200" />
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-white mb-1">Encrypted Sync</h3>
-                                <p className="text-blue-100/50 text-sm">Your thoughts are secured with enterprise-grade encryption and instant sync.</p>
-                            </div>
-                        </div>
-                    </div>
                 </div>
 
-                <div className="absolute bottom-12 left-12 flex items-center gap-2 text-white/40 text-sm font-bold tracking-widest uppercase">
-                    <Zap className="w-4 h-4 fill-white/40 text-transparent" />
-                    <span>Powered by AWS</span>
-                </div>
             </div>
 
             {/* Right: Interaction Area */}
@@ -103,6 +63,7 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
                     <Authenticator
                         components={components}
                         formFields={formFields}
+                        hideSignUp={true}
                     >
                         {({ signOut, user }) => (
                             <main className="w-full h-full">
