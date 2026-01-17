@@ -58,14 +58,26 @@ export class NotebookApiStack extends cdk.Stack {
       typeName: 'Query',
       fieldName: 'getNotebook',
       requestMappingTemplate: appsync.MappingTemplate.dynamoDbGetItem('id', 'id'),
-      responseMappingTemplate: appsync.MappingTemplate.dynamoDbResultItem(),
+      responseMappingTemplate: appsync.MappingTemplate.fromString(`
+        #if(\$util.isNull(\$ctx.result.title))
+          #set(\$ctx.result.title = "Untitled Document")
+        #end
+        \$util.toJson(\$ctx.result)
+      `),
     });
 
     dbSource.createResolver('ListNotebooks', {
       typeName: 'Query',
       fieldName: 'listNotebooks',
       requestMappingTemplate: appsync.MappingTemplate.dynamoDbScanTable(),
-      responseMappingTemplate: appsync.MappingTemplate.dynamoDbResultList(),
+      responseMappingTemplate: appsync.MappingTemplate.fromString(`
+        #foreach(\$item in \$ctx.result.items)
+          #if(\$util.isNull(\$item.title))
+            #set(\$item.title = "Untitled Document")
+          #end
+        #end
+        \$util.toJson(\$ctx.result.items)
+      `),
     });
 
     dbSource.createResolver('CreateNotebook', {
