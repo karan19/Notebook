@@ -195,8 +195,7 @@ export const useNotebookStore = create<NotebookStore>((set, get) => ({
             const response = await fetch(downloadUrl);
 
             if (response.status === 404 || response.status === 403) {
-                // If the file doesn't exist yet, it's a new notebook
-                console.log("[Store] Content not found in S3 (likely a new notebook), returning empty.");
+                // If the file doesn't exist yet, it's a new notebook - silent return
                 return "";
             }
 
