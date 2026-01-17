@@ -37,6 +37,7 @@ interface NotebookStore {
     setFilter: (filter: 'all' | 'favorites' | 'trash') => void;
     searchQuery: string;
     setSearchQuery: (query: string) => void;
+    uploadAsset: (file: File) => Promise<string>;
 }
 
 export const useNotebookStore = create<NotebookStore>((set, get) => ({
@@ -219,6 +220,35 @@ export const useNotebookStore = create<NotebookStore>((set, get) => ({
             // Log more details if it's a TypeError or similar
             if (error.message) console.error("Error Message:", error.message);
             return "";
+        }
+    },
+
+    uploadAsset: async (file: File) => {
+        try {
+            console.log(`[Store] Uploading asset: ${file.name}`);
+            const result = await getClient().graphql({
+                query: queries.getAssetUploadUrl,
+                variables: {
+                    filename: file.name,
+                    contentType: file.type
+                }
+            }) as any;
+
+            const uploadUrl = result.data.getAssetUploadUrl;
+            if (!uploadUrl) throw new Error("No upload URL returned");
+
+            await fetch(uploadUrl, {
+                method: 'PUT',
+                body: file,
+                headers: { 'Content-Type': file.type }
+            });
+
+            // Return clean URL (strip query params)
+            const publicUrl = uploadUrl.split('?')[0];
+            return publicUrl;
+        } catch (error) {
+            console.error("Error uploading asset:", error);
+            throw error;
         }
     },
 

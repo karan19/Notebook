@@ -12,6 +12,7 @@ type Query {
   getNotebook(id: ID!): Notebook
   listNotebooks: [Notebook]
   getUploadUrl(id: ID!): String
+  getAssetUploadUrl(filename: String!, contentType: String!): String
   getDownloadUrl(id: ID!): String
 }
 

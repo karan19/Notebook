@@ -69,3 +69,9 @@ export const getDownloadUrl = /* GraphQL */ `
     getDownloadUrl(id: $id)
   }
 `;
+
+export const getAssetUploadUrl = /* GraphQL */ `
+  query GetAssetUploadUrl($filename: String!, $contentType: String!) {
+    getAssetUploadUrl(filename: $filename, contentType: $contentType)
+  }
+`;

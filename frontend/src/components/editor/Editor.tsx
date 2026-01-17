@@ -16,12 +16,14 @@ interface EditorProps {
 }
 
 export function Editor({ id }: EditorProps) {
-    const { getNotebook, updateNotebook, loadContent, saveContent } = useNotebookStore();
+    const { getNotebook, updateNotebook, loadContent, saveContent, uploadAsset } = useNotebookStore();
     const [title, setTitle] = useState("Untitled");
     const [isLoaded, setIsLoaded] = useState(false);
 
     // Initialize editor
-    const editor = useCreateBlockNote();
+    const editor = useCreateBlockNote({
+        uploadFile: uploadAsset,
+    });
 
     // Load content from S3 via store
     useEffect(() => {
