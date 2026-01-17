@@ -88,14 +88,6 @@ export default function Dashboard() {
 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-10">
-          <div className="mb-8">
-            <h2 className="text-3xl font-bold text-gray-900 tracking-tight capitalize">
-              {currentFilter === 'all' ? 'Your Library' : `${currentFilter}`}
-            </h2>
-            <p className="text-gray-400 text-sm font-medium mt-1">
-              {searchQuery ? `Found ${filteredNotebooks.length} matches for "${searchQuery}"` : `You have ${filteredNotebooks.length} notebooks in this view.`}
-            </p>
-          </div>
 
           {loading ? (
             <div className="flex justify-center items-center h-64">
