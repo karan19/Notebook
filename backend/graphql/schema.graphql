@@ -2,6 +2,7 @@ type Notebook {
   id: ID!
   title: String!
   snippet: String
+  isFavorite: Boolean
   contentKey: String!
   lastEditedAt: AWSTimestamp!
   createdAt: AWSTimestamp!
@@ -16,6 +17,6 @@ type Query {
 
 type Mutation {
   createNotebook(title: String!): Notebook
-  updateNotebook(id: ID!, title: String, snippet: String, contentKey: String): Notebook
+  updateNotebook(id: ID!, title: String, snippet: String, isFavorite: Boolean, contentKey: String): Notebook
   deleteNotebook(id: ID!): ID
 }

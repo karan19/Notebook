@@ -81,6 +81,7 @@ export class NotebookApiStack extends cdk.Stack {
           },
           "attributeValues": {
             "title": \$util.dynamodb.toDynamoDBJson(\$ctx.args.title),
+            "isFavorite": \$util.dynamodb.toDynamoDBJson(false),
             "contentKey": \$util.dynamodb.toDynamoDBJson("notes/\$util.autoId().html"),
             "createdAt": \$util.dynamodb.toDynamoDBJson(\$util.time.nowEpochMilliSeconds()),
             "lastEditedAt": \$util.dynamodb.toDynamoDBJson(\$util.time.nowEpochMilliSeconds())
@@ -101,10 +102,11 @@ export class NotebookApiStack extends cdk.Stack {
                 "id": \$util.dynamodb.toDynamoDBJson(\$ctx.args.id)
               },
               "update": {
-                "expression": "SET title = :title, snippet = :snippet, lastEditedAt = :lastStep",
+                "expression": "SET title = :title, snippet = :snippet, isFavorite = :isFavorite, lastEditedAt = :lastStep",
                 "expressionValues": {
                   ":title": \$util.dynamodb.toDynamoDBJson(\$ctx.args.title),
                   ":snippet": \$util.dynamodb.toDynamoDBJson(\$ctx.args.snippet),
+                  ":isFavorite": \$util.dynamodb.toDynamoDBJson(\$ctx.args.isFavorite),
                   ":lastStep": \$util.dynamodb.toDynamoDBJson(\$util.time.nowEpochMilliSeconds())
                 }
               }

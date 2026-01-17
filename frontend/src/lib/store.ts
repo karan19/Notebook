@@ -15,6 +15,7 @@ export interface Notebook {
     id: string;
     title: string;
     snippet?: string;
+    isFavorite?: boolean;
     contentKey: string;
     content?: string; // Loaded on demand
     lastEditedAt: number;
@@ -31,11 +32,21 @@ interface NotebookStore {
     getNotebook: (id: string) => Promise<Notebook | undefined>;
     saveContent: (id: string, html: string) => Promise<void>;
     loadContent: (id: string) => Promise<string>;
+    toggleFavorite: (id: string) => Promise<void>;
+    currentFilter: 'all' | 'favorites' | 'trash';
+    setFilter: (filter: 'all' | 'favorites' | 'trash') => void;
+    searchQuery: string;
+    setSearchQuery: (query: string) => void;
 }
 
 export const useNotebookStore = create<NotebookStore>((set, get) => ({
     notebooks: [],
     loading: false,
+    currentFilter: 'all',
+    searchQuery: "",
+
+    setFilter: (filter) => set({ currentFilter: filter }),
+    setSearchQuery: (query) => set({ searchQuery: query }),
 
     fetchNotebooks: async () => {
         set({ loading: true });
@@ -81,6 +92,7 @@ export const useNotebookStore = create<NotebookStore>((set, get) => ({
                     id,
                     title: updates.title,
                     snippet: updates.snippet,
+                    isFavorite: updates.isFavorite,
                     contentKey: updates.contentKey
                 }
             });
@@ -203,6 +215,38 @@ export const useNotebookStore = create<NotebookStore>((set, get) => ({
             // Log more details if it's a TypeError or similar
             if (error.message) console.error("Error Message:", error.message);
             return "";
+        }
+    },
+
+    toggleFavorite: async (id: string) => {
+        const notebook = get().notebooks.find(n => n.id === id);
+        if (!notebook) return;
+
+        const newValue = !notebook.isFavorite;
+
+        // Optimistic update
+        set((state) => ({
+            notebooks: state.notebooks.map((nb) =>
+                nb.id === id ? { ...nb, isFavorite: newValue } : nb
+            ),
+        }));
+
+        try {
+            await getClient().graphql({
+                query: mutations.updateNotebook,
+                variables: {
+                    id,
+                    isFavorite: newValue
+                }
+            });
+        } catch (error) {
+            console.error("Error toggling favorite:", error);
+            // Revert on error
+            set((state) => ({
+                notebooks: state.notebooks.map((nb) =>
+                    nb.id === id ? { ...nb, isFavorite: !newValue } : nb
+                ),
+            }));
         }
     },
 }));

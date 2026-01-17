@@ -4,6 +4,7 @@ export const listNotebooks = /* GraphQL */ `
       id
       title
       snippet
+      isFavorite
       contentKey
       lastEditedAt
       createdAt
@@ -17,6 +18,7 @@ export const getNotebook = /* GraphQL */ `
       id
       title
       snippet
+      isFavorite
       contentKey
       lastEditedAt
       createdAt
@@ -29,6 +31,7 @@ export const createNotebook = /* GraphQL */ `
     createNotebook(title: $title) {
       id
       title
+      isFavorite
       contentKey
       createdAt
       lastEditedAt
@@ -37,11 +40,12 @@ export const createNotebook = /* GraphQL */ `
 `;
 
 export const updateNotebook = /* GraphQL */ `
-  mutation UpdateNotebook($id: ID!, $title: String, $snippet: String, $contentKey: String) {
-    updateNotebook(id: $id, title: $title, snippet: $snippet, contentKey: $contentKey) {
+  mutation UpdateNotebook($id: ID!, $title: String, $snippet: String, $isFavorite: Boolean, $contentKey: String) {
+    updateNotebook(id: $id, title: $title, snippet: $snippet, isFavorite: $isFavorite, contentKey: $contentKey) {
       id
       title
       snippet
+      isFavorite
       contentKey
       lastEditedAt
     }

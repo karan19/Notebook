@@ -3,7 +3,8 @@
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { useNotebookStore } from "@/lib/store";
 import { formatDistanceToNow } from "date-fns";
-import { FileText, MoreVertical, Trash2, ExternalLink, Search, Clock, Grid, List as ListIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { FileText, MoreVertical, Trash2, ExternalLink, Search, Clock, Grid, List as ListIcon, Star } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,8 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export default function Dashboard() {
-  const { notebooks, deleteNotebook, fetchNotebooks, addNotebook, loading } = useNotebookStore();
-  const [search, setSearch] = useState("");
+  const { notebooks, deleteNotebook, fetchNotebooks, addNotebook, loading, searchQuery, setSearchQuery, currentFilter, toggleFavorite } = useNotebookStore();
   const router = useRouter();
 
   useEffect(() => {
@@ -31,9 +31,14 @@ export default function Dashboard() {
     router.push(`/notebooks/${id}`);
   };
 
-  const filteredNotebooks = notebooks.filter(nb =>
-    nb.title.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredNotebooks = notebooks.filter(nb => {
+    const matchesSearch = nb.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (nb.snippet && nb.snippet.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    if (currentFilter === 'favorites') return matchesSearch && nb.isFavorite;
+    if (currentFilter === 'trash') return false; // Not implemented yet
+    return matchesSearch;
+  });
 
   return (
     <div className="flex h-screen bg-[#FDFDFD]">
@@ -47,8 +52,8 @@ export default function Dashboard() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 placeholder="Search notebooks..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 bg-gray-50 border-transparent focus:bg-white focus:border-gray-200 transition-all rounded-xl h-10 shadow-none focus-visible:ring-0"
               />
             </div>
@@ -71,18 +76,31 @@ export default function Dashboard() {
 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-10">
+          <div className="mb-8">
+            <h2 className="text-3xl font-bold text-gray-900 tracking-tight capitalize">
+              {currentFilter === 'all' ? 'Your Library' : `${currentFilter}`}
+            </h2>
+            <p className="text-gray-400 text-sm font-medium mt-1">
+              {searchQuery ? `Found ${filteredNotebooks.length} matches for "${searchQuery}"` : `You have ${filteredNotebooks.length} notebooks in this view.`}
+            </p>
+          </div>
+
           {filteredNotebooks.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full gap-6 text-center">
-              <div className="w-24 h-24 bg-gray-50 rounded-[2.5rem] flex items-center justify-center border border-gray-100 shadow-inner">
-                <FileText className="h-10 w-10 text-gray-300" />
+            <div className="flex flex-col items-center justify-center py-24 bg-white rounded-3xl border-2 border-dashed border-gray-100">
+              <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4">
+                <Search className="h-8 w-8 text-gray-300" />
               </div>
-              <div className="space-y-1">
-                <p className="text-xl font-semibold text-gray-900">No entries found</p>
-                <p className="text-gray-500">Start documenting your thoughts today.</p>
-              </div>
-              <Button onClick={handleCreateFirst} className="bg-black hover:bg-black/90 text-white px-8 rounded-2xl py-6 h-auto">
-                Create First Note
-              </Button>
+              <h3 className="text-lg font-semibold text-gray-900">
+                {currentFilter === 'favorites' ? 'No favorites yet' : 'No entries found'}
+              </h3>
+              <p className="text-gray-400 text-sm max-w-xs text-center mt-2 font-medium leading-relaxed">
+                {currentFilter === 'favorites' ? 'Star a notebook to see it here for quick access.' : 'Start documenting your thoughts today.'}
+              </p>
+              {currentFilter === 'all' && !searchQuery && (
+                <Button onClick={handleCreateFirst} className="mt-8 bg-black hover:bg-black/90 text-white rounded-xl px-8 h-12">
+                  Create First Note
+                </Button>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
@@ -91,6 +109,20 @@ export default function Dashboard() {
                   key={notebook.id}
                   className="group relative flex flex-col bg-white border border-gray-100 rounded-2xl p-6 transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:border-gray-200 active:scale-[0.99]"
                 >
+                  <div className="absolute top-4 right-4 z-10 flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(notebook.id); }}
+                      className={cn(
+                        "h-8 w-8 rounded-lg transition-all",
+                        notebook.isFavorite ? "text-yellow-400 bg-yellow-50" : "text-gray-300 hover:text-gray-900 hover:bg-gray-50"
+                      )}
+                    >
+                      <Star className={cn("h-4 w-4", notebook.isFavorite && "fill-current")} />
+                    </Button>
+                  </div>
+
                   <Link href={`/notebooks/${notebook.id}`} className="flex-1 flex flex-col gap-4">
                     <div className="flex items-start justify-between">
                       <div className="p-3 bg-gray-50 rounded-xl group-hover:bg-black group-hover:text-white transition-all duration-300">
@@ -99,7 +131,7 @@ export default function Dashboard() {
                     </div>
 
                     <div className="space-y-1">
-                      <h3 className="font-bold text-gray-900 text-lg group-hover:text-black transition-colors truncate">
+                      <h3 className="font-bold text-gray-900 text-lg group-hover:text-black transition-colors truncate pr-8">
                         {notebook.title}
                       </h3>
                       <div className="flex items-center gap-2 text-xs font-medium text-gray-400">
