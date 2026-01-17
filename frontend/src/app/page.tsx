@@ -120,25 +120,19 @@ export default function Dashboard() {
             </motion.div>
           ) : (
             <motion.div
-              initial="hidden"
-              animate="visible"
-              variants={{
-                hidden: { opacity: 0 },
-                visible: {
-                  opacity: 1,
-                  transition: {
-                    staggerChildren: 0.1
-                  }
-                }
-              }}
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8"
             >
-              {filteredNotebooks.map((notebook) => (
+              {filteredNotebooks.map((notebook, index) => (
                 <motion.div
                   key={notebook.id}
-                  variants={{
-                    hidden: { opacity: 0, y: 20 },
-                    visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: 0.4,
+                    delay: index * 0.1,
+                    type: "spring",
+                    stiffness: 300,
+                    damping: 24
                   }}
                   className="group relative flex flex-col bg-white border border-gray-100 rounded-2xl p-6 transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:border-gray-200 active:scale-[0.99]"
                 >
