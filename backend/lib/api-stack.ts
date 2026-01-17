@@ -1,0 +1,130 @@
+import * as cdk from 'aws-cdk-lib';
+import * as appsync from 'aws-cdk-lib/aws-appsync';
+import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as cognito from 'aws-cdk-lib/aws-cognito';
+import * as lambda from 'aws-cdk-lib/aws-lambda-nodejs';
+import * as path from 'path';
+import { Construct } from 'constructs';
+
+interface NotebookApiStackProps extends cdk.StackProps {
+  notebookTable: dynamodb.Table;
+  contentBucket: s3.Bucket;
+  userPoolId: string;
+}
+
+export class NotebookApiStack extends cdk.Stack {
+  constructor(scope: Construct, id: string, props: NotebookApiStackProps) {
+    super(scope, id, props);
+
+    // Import existing User Pool
+    const userPool = cognito.UserPool.fromUserPoolId(this, 'UserPool', props.userPoolId);
+
+    // AppSync API
+    const api = new appsync.GraphqlApi(this, 'NotebookApi', {
+      name: 'NotebookApi',
+      schema: appsync.SchemaFile.fromAsset(path.join(__dirname, '../graphql/schema.graphql')),
+      authorizationConfig: {
+        defaultAuthorization: {
+          authorizationType: appsync.AuthorizationType.USER_POOL,
+          userPoolConfig: {
+            userPool,
+          },
+        },
+      },
+    });
+
+    // Data Sources
+    const dbSource = api.addDynamoDbDataSource('NotebookDataSource', props.notebookTable);
+
+    const lambdaSource = api.addLambdaDataSource(
+      'UrlHandlerDataSource',
+      new lambda.NodejsFunction(this, 'UrlHandler', {
+        entry: path.join(__dirname, '../lambda/url-handler.ts'),
+        environment: {
+          BUCKET_NAME: props.contentBucket.bucketName,
+        },
+        bundling: {
+          minify: true,
+          sourceMap: true,
+        },
+      })
+    );
+
+    // Permissions
+    props.contentBucket.grantReadWrite(lambdaSource.grantPrincipal);
+
+    // Resolvers
+    dbSource.createResolver('GetNotebook', {
+      typeName: 'Query',
+      fieldName: 'getNotebook',
+      requestMappingTemplate: appsync.MappingTemplate.dynamoDbGetItem('id', 'id'),
+      responseMappingTemplate: appsync.MappingTemplate.dynamoDbResultItem(),
+    });
+
+    dbSource.createResolver('ListNotebooks', {
+      typeName: 'Query',
+      fieldName: 'listNotebooks',
+      requestMappingTemplate: appsync.MappingTemplate.dynamoDbScanTable(),
+      responseMappingTemplate: appsync.MappingTemplate.dynamoDbResultList(),
+    });
+
+    dbSource.createResolver('CreateNotebook', {
+      typeName: 'Mutation',
+      fieldName: 'createNotebook',
+      requestMappingTemplate: appsync.MappingTemplate.fromString(`
+        {
+          "version": "2018-05-29",
+          "operation": "PutItem",
+          "key": {
+            "id": \$util.dynamodb.toDynamoDBJson(\$util.autoId())
+          },
+          "attributeValues": {
+            "title": \$util.dynamodb.toDynamoDBJson(\$ctx.args.title),
+            "contentKey": \$util.dynamodb.toDynamoDBJson("notes/\$util.autoId().html"),
+            "createdAt": \$util.dynamodb.toDynamoDBJson(\$util.time.nowEpochMilliSeconds()),
+            "lastEditedAt": \$util.dynamodb.toDynamoDBJson(\$util.time.nowEpochMilliSeconds())
+          }
+        }
+      `),
+      responseMappingTemplate: appsync.MappingTemplate.dynamoDbResultItem(),
+    });
+
+    dbSource.createResolver('UpdateNotebook', {
+      typeName: 'Mutation',
+      fieldName: 'updateNotebook',
+      requestMappingTemplate: appsync.MappingTemplate.fromString(`
+            {
+              "version": "2018-05-29",
+              "operation": "UpdateItem",
+              "key": {
+                "id": \$util.dynamodb.toDynamoDBJson(\$ctx.args.id)
+              },
+              "update": {
+                "expression": "SET title = :title, snippet = :snippet, lastEditedAt = :lastStep",
+                "expressionValues": {
+                  ":title": \$util.dynamodb.toDynamoDBJson(\$ctx.args.title),
+                  ":snippet": \$util.dynamodb.toDynamoDBJson(\$ctx.args.snippet),
+                  ":lastStep": \$util.dynamodb.toDynamoDBJson(\$util.time.nowEpochMilliSeconds())
+                }
+              }
+            }
+          `),
+      responseMappingTemplate: appsync.MappingTemplate.dynamoDbResultItem(),
+    });
+
+    dbSource.createResolver('DeleteNotebook', {
+      typeName: 'Mutation',
+      fieldName: 'deleteNotebook',
+      requestMappingTemplate: appsync.MappingTemplate.dynamoDbDeleteItem('id', 'id'),
+      responseMappingTemplate: appsync.MappingTemplate.fromString('$util.toJson($ctx.result.id)'),
+    });
+
+    // Link S3 URL queries to Lambda
+    lambdaSource.createResolver('GetUploadUrl', { typeName: 'Query', fieldName: 'getUploadUrl' });
+    lambdaSource.createResolver('GetDownloadUrl', { typeName: 'Query', fieldName: 'getDownloadUrl' });
+
+    // Output API Details
+    new cdk.CfnOutput(this, 'GraphQLAPIURL', { value: api.graphqlUrl });
+  }
+}

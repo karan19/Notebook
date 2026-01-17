@@ -1,0 +1,21 @@
+type Notebook {
+  id: ID!
+  title: String!
+  snippet: String
+  contentKey: String!
+  lastEditedAt: AWSTimestamp!
+  createdAt: AWSTimestamp!
+}
+
+type Query {
+  getNotebook(id: ID!): Notebook
+  listNotebooks: [Notebook]
+  getUploadUrl(id: ID!): String
+  getDownloadUrl(id: ID!): String
+}
+
+type Mutation {
+  createNotebook(title: String!): Notebook
+  updateNotebook(id: ID!, title: String, snippet: String, contentKey: String): Notebook
+  deleteNotebook(id: ID!): ID
+}
