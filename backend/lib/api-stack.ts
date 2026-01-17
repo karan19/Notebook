@@ -109,34 +109,34 @@ export class NotebookApiStack extends cdk.Stack {
       requestMappingTemplate: appsync.MappingTemplate.fromString(`
         #set(\$expression = "SET lastEditedAt = :lastEditedAt")
         #set(\$expressionValues = {
-          ":lastEditedAt": \$util.dynamodb.toDynamoDBJson(\$util.time.nowEpochMilliSeconds())
+          ":lastEditedAt": { "N": "\$util.time.nowEpochMilliSeconds()" }
         })
 
         #if(\$ctx.args.title)
           #set(\$expression = "\${expression}, title = :title")
-          \$util.qr(\$expressionValues.put(":title", \$util.dynamodb.toDynamoDBJson(\$ctx.args.title)))
+          \$util.qr(\$expressionValues.put(":title", { "S": \$ctx.args.title }))
         #end
 
         #if(\$ctx.args.snippet)
           #set(\$expression = "\${expression}, snippet = :snippet")
-          \$util.qr(\$expressionValues.put(":snippet", \$util.dynamodb.toDynamoDBJson(\$ctx.args.snippet)))
+          \$util.qr(\$expressionValues.put(":snippet", { "S": \$ctx.args.snippet }))
         #end
 
         #if(!\$util.isNull(\$ctx.args.isFavorite))
           #set(\$expression = "\${expression}, isFavorite = :isFavorite")
-          \$util.qr(\$expressionValues.put(":isFavorite", \$util.dynamodb.toDynamoDBJson(\$ctx.args.isFavorite)))
+          \$util.qr(\$expressionValues.put(":isFavorite", { "BOOL": \$ctx.args.isFavorite }))
         #end
 
         #if(\$ctx.args.contentKey)
           #set(\$expression = "\${expression}, contentKey = :contentKey")
-          \$util.qr(\$expressionValues.put(":contentKey", \$util.dynamodb.toDynamoDBJson(\$ctx.args.contentKey)))
+          \$util.qr(\$expressionValues.put(":contentKey", { "S": \$ctx.args.contentKey }))
         #end
 
         {
           "version": "2018-05-29",
           "operation": "UpdateItem",
           "key": {
-            "id": \$util.dynamodb.toDynamoDBJson(\$ctx.args.id)
+            "id": { "S": \$util.toJson(\$ctx.args.id) }
           },
           "update": {
             "expression": "\${expression}",
