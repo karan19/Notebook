@@ -6,7 +6,8 @@ import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 import { useNotebookStore } from "@/lib/store";
 import { useEffect, useState } from "react";
-import { ChevronRight, Hash } from "lucide-react";
+import Link from "next/link";
+import { ChevronRight, Hash, ChevronLeft } from "lucide-react";
 
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
@@ -79,11 +80,18 @@ export function Editor({ id }: EditorProps) {
             <main className="flex-1 overflow-y-auto relative">
                 <div className="max-w-3xl mx-auto px-8 py-12 min-h-screen">
                     {/* Content Header */}
-                    <div className="mb-8 border-b border-gray-100 pb-8">
+                    <div className="mb-8 border-b border-gray-100 pb-8 flex items-center gap-4">
+                        <Link
+                            href="/"
+                            className="group flex items-center justify-center w-10 h-10 -ml-2 rounded-full hover:bg-gray-100 transition-colors"
+                            title="Back to Dashboard"
+                        >
+                            <ChevronLeft className="w-6 h-6 text-gray-400 group-hover:text-gray-900 transition-colors" />
+                        </Link>
                         <input
                             value={title}
                             onChange={handleTitleChange}
-                            className="w-full text-4xl font-extrabold tracking-tight text-gray-900 border-none focus:ring-0 p-0 bg-transparent placeholder:text-gray-300"
+                            className="flex-1 text-4xl font-extrabold tracking-tight text-gray-900 border-none focus:ring-0 p-0 bg-transparent placeholder:text-gray-300"
                             placeholder="Title"
                         />
                     </div>
