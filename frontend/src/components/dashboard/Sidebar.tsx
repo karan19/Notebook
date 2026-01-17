@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { useAuthenticator } from '@aws-amplify/ui-react';
-import { Plus, FileText, Star, Trash2, Search, Settings, Hash, UserCircle } from "lucide-react";
+import { Plus, FileText, Star, Search } from "lucide-react";
 import { useNotebookStore } from "@/lib/store";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
@@ -26,10 +26,7 @@ export function Sidebar() {
     const navItems = [
         { label: "All Notebooks", icon: FileText, filter: 'all' },
         { label: "Favorites", icon: Star, filter: 'favorites' },
-        { label: "Trash", icon: Trash2, filter: 'trash' },
     ];
-
-    const tags = ["Project Alpha", "Personal", "Ideas", "Recipes"];
 
     const handleNavClick = (item: any) => {
         if (item.filter) {
@@ -62,7 +59,7 @@ export function Sidebar() {
                 {/* Search Bar */}
                 <div className="px-1">
                     <div className="relative group">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-black transition-colors" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-black transition-colors pointer-events-none" />
                         <input
                             type="text"
                             placeholder="Quick Search..."
@@ -90,40 +87,6 @@ export function Sidebar() {
                         </Button>
                     ))}
                 </nav>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-                <p className="px-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Collections</p>
-                {tags.map((tag) => (
-                    <Button
-                        key={tag}
-                        variant="ghost"
-                        onClick={() => handleComingSoon(`Collection: ${tag}`)}
-                        className="w-full justify-start gap-3 text-gray-400 hover:bg-gray-50 rounded-xl py-5 font-medium transition-all opacity-60"
-                    >
-                        <Hash className="h-4.5 w-4.5 text-gray-300" />
-                        {tag}
-                    </Button>
-                ))}
-            </div>
-
-            <div className="mt-auto flex flex-col gap-1.5 border-t pt-8 border-gray-100">
-                <Button
-                    variant="ghost"
-                    onClick={() => handleComingSoon("Settings")}
-                    className="w-full justify-start gap-3 text-gray-500 hover:bg-gray-50 rounded-xl py-5 transition-all"
-                >
-                    <Settings className="h-4.5 w-4.5" />
-                    Settings
-                </Button>
-                <Button
-                    variant="ghost"
-                    onClick={signOut}
-                    className="w-full justify-start gap-3 text-red-500 hover:bg-red-50 rounded-xl py-5 transition-all group"
-                >
-                    <UserCircle className="h-4.5 w-4.5 group-hover:animate-pulse" />
-                    Sign Out
-                </Button>
             </div>
         </div>
     );

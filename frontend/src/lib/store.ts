@@ -54,8 +54,13 @@ export const useNotebookStore = create<NotebookStore>((set, get) => ({
             const result = await getClient().graphql({ query: queries.listNotebooks }) as any;
             const items = result.data.listNotebooks || [];
             set({ notebooks: items, loading: false });
-        } catch (error) {
-            console.error("Error fetching notebooks:", error);
+        } catch (error: any) {
+            console.error("Error fetching notebooks:");
+            if (error.errors) {
+                console.error("GraphQL Errors:", JSON.stringify(error.errors, null, 2));
+            } else {
+                console.error(error);
+            }
             set({ loading: false });
         }
     },

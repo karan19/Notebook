@@ -4,12 +4,13 @@ import { Sidebar } from "@/components/dashboard/Sidebar";
 import { useNotebookStore } from "@/lib/store";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
-import { FileText, MoreVertical, Trash2, ExternalLink, Search, Clock, Grid, List as ListIcon, Star } from "lucide-react";
+import { FileText, MoreVertical, Trash2, ExternalLink, Search, Star, UserCircle, LogOut } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuthenticator } from '@aws-amplify/ui-react';
 
 import {
   DropdownMenu,
@@ -20,6 +21,7 @@ import {
 
 export default function Dashboard() {
   const { notebooks, deleteNotebook, fetchNotebooks, addNotebook, loading, searchQuery, setSearchQuery, currentFilter, toggleFavorite } = useNotebookStore();
+  const { user, signOut } = useAuthenticator();
   const router = useRouter();
 
   useEffect(() => {
@@ -47,7 +49,6 @@ export default function Dashboard() {
         {/* Modern Navbar */}
         <header className="h-20 border-b border-gray-100 flex items-center px-10 justify-between bg-white/80 backdrop-blur-md sticky top-0 z-10 w-full">
           <div className="flex items-center gap-6 flex-1 max-w-2xl">
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight shrink-0">Your Notes</h1>
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
@@ -59,18 +60,27 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" className="rounded-xl text-gray-500 hover:bg-gray-100">
-              <Clock className="h-5 w-5" />
-            </Button>
-            <div className="flex bg-gray-100 p-1 rounded-xl">
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg bg-white shadow-sm text-black">
-                <Grid className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-gray-400">
-                <ListIcon className="h-4 w-4" />
-              </Button>
-            </div>
+          <div className="flex items-center gap-4">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 p-0 overflow-hidden hover:bg-gray-100 transition-all ring-offset-2 focus-visible:ring-2 focus-visible:ring-gray-200">
+                  <UserCircle className="h-6 w-6 text-gray-500" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64 rounded-2xl mt-2 p-2 shadow-2xl border-gray-100 animate-in fade-in zoom-in-95 duration-200">
+                <div className="px-3 py-4 mb-2 border-b border-gray-50 select-none">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 leading-none">Account</p>
+                  <p className="text-sm font-semibold text-gray-900 truncate leading-none pt-1">{user?.signInDetails?.loginId || user?.username || 'User'}</p>
+                </div>
+                <DropdownMenuItem
+                  onClick={signOut}
+                  className="flex items-center gap-3 text-red-500 focus:text-red-700 focus:bg-red-50 rounded-xl py-3 px-3 cursor-pointer transition-colors group"
+                >
+                  <LogOut className="h-4.5 w-4.5 group-hover:translate-x-0.5 transition-transform" />
+                  <span className="font-semibold text-sm">Sign Out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 
