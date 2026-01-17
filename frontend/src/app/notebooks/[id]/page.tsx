@@ -4,7 +4,7 @@ import { use, useState, useEffect } from "react";
 import { Editor } from "@/components/editor/Editor";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { History, UserCircle, ChevronLeft } from "lucide-react";
+import { UserCircle, ChevronLeft } from "lucide-react";
 import { useNotebookStore } from "@/lib/store";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -81,10 +81,6 @@ export default function NotebookPage({ params }: { params: Promise<{ id: string 
                 </div>
 
                 <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl hover:bg-gray-50 text-gray-400 hover:text-black transition-all">
-                        <History className="h-5 w-5" />
-                    </Button>
-                    <div className="w-px h-6 bg-gray-100" />
                     <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl hover:bg-gray-50 text-gray-400 hover:text-black transition-all">
                         <UserCircle className="h-6 w-6" />
                     </Button>
