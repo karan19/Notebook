@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/request';
+import { NextResponse, NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
     // If the request is for the root, we ensure it's handled by Next.js
