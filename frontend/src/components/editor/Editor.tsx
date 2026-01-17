@@ -7,7 +7,7 @@ import "@blocknote/mantine/style.css";
 import { useNotebookStore } from "@/lib/store";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Hash, ChevronLeft } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
@@ -113,17 +113,7 @@ export function Editor({ id }: EditorProps) {
                 </div>
             </main>
 
-            {/* On-page Nav (TOC) - Static for now, can be made dynamic later */}
-            <aside className="w-64 border-l border-gray-100 h-full hidden xl:block p-8 overflow-y-auto">
-                <div className="fixed w-48">
-                    <h4 className="text-xs font-semibold text-gray-900 uppercase tracking-wider mb-4 flex items-center gap-2">
-                        <Hash className="w-3 h-3" /> On This Page
-                    </h4>
-                    <ul className="space-y-2 text-sm text-gray-500 border-l border-gray-100 pl-4">
-                        <li className="hover:text-gray-900 cursor-pointer transition-colors">Top of Page</li>
-                    </ul>
-                </div>
-            </aside>
+
         </div>
     );
 }
