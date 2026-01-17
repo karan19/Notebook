@@ -78,27 +78,14 @@ export function Editor({ id }: EditorProps) {
             {/* Main Content Area */}
             <main className="flex-1 overflow-y-auto relative">
                 <div className="max-w-3xl mx-auto px-8 py-12 min-h-screen">
-                    {/* Breadcrumbs */}
-                    <div className="flex items-center gap-2 text-sm text-gray-400 mb-8 select-none">
-                        <span>Notebooks</span>
-                        <ChevronRight className="w-4 h-4" />
-                        <span className="text-gray-900 font-medium truncate max-w-[200px]">{title || "Untitled"}</span>
-                    </div>
-
                     {/* Content Header */}
                     <div className="mb-8 border-b border-gray-100 pb-8">
-                        <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-700 text-xs font-medium mb-4">
-                            Notebook Layout
-                        </div>
                         <input
                             value={title}
                             onChange={handleTitleChange}
                             className="w-full text-4xl font-extrabold tracking-tight text-gray-900 border-none focus:ring-0 p-0 bg-transparent placeholder:text-gray-300"
                             placeholder="Title"
                         />
-                        <p className="mt-4 text-lg text-gray-500 leading-relaxed">
-                            Start writing your documentation, notes, or ideas here.
-                        </p>
                     </div>
 
                     {/* Editor */}
