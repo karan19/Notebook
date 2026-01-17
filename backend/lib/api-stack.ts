@@ -107,23 +107,43 @@ export class NotebookApiStack extends cdk.Stack {
       typeName: 'Mutation',
       fieldName: 'updateNotebook',
       requestMappingTemplate: appsync.MappingTemplate.fromString(`
-            {
-              "version": "2018-05-29",
-              "operation": "UpdateItem",
-              "key": {
-                "id": \$util.dynamodb.toDynamoDBJson(\$ctx.args.id)
-              },
-              "update": {
-                "expression": "SET title = :title, snippet = :snippet, isFavorite = :isFavorite, lastEditedAt = :lastStep",
-                "expressionValues": {
-                  ":title": \$util.dynamodb.toDynamoDBJson(\$ctx.args.title),
-                  ":snippet": \$util.dynamodb.toDynamoDBJson(\$ctx.args.snippet),
-                  ":isFavorite": \$util.dynamodb.toDynamoDBJson(\$ctx.args.isFavorite),
-                  ":lastStep": \$util.dynamodb.toDynamoDBJson(\$util.time.nowEpochMilliSeconds())
-                }
-              }
-            }
-          `),
+        #set(\$expression = "SET lastEditedAt = :lastEditedAt")
+        #set(\$expressionValues = {
+          ":lastEditedAt": \$util.dynamodb.toDynamoDBJson(\$util.time.nowEpochMilliSeconds())
+        })
+
+        #if(\$ctx.args.title)
+          #set(\$expression = "\${expression}, title = :title")
+          \$util.qr(\$expressionValues.put(":title", \$util.dynamodb.toDynamoDBJson(\$ctx.args.title)))
+        #end
+
+        #if(\$ctx.args.snippet)
+          #set(\$expression = "\${expression}, snippet = :snippet")
+          \$util.qr(\$expressionValues.put(":snippet", \$util.dynamodb.toDynamoDBJson(\$ctx.args.snippet)))
+        #end
+
+        #if(!\$util.isNull(\$ctx.args.isFavorite))
+          #set(\$expression = "\${expression}, isFavorite = :isFavorite")
+          \$util.qr(\$expressionValues.put(":isFavorite", \$util.dynamodb.toDynamoDBJson(\$ctx.args.isFavorite)))
+        #end
+
+        #if(\$ctx.args.contentKey)
+          #set(\$expression = "\${expression}, contentKey = :contentKey")
+          \$util.qr(\$expressionValues.put(":contentKey", \$util.dynamodb.toDynamoDBJson(\$ctx.args.contentKey)))
+        #end
+
+        {
+          "version": "2018-05-29",
+          "operation": "UpdateItem",
+          "key": {
+            "id": \$util.dynamodb.toDynamoDBJson(\$ctx.args.id)
+          },
+          "update": {
+            "expression": "\${expression}",
+            "expressionValues": \$util.toJson(\$expressionValues)
+          }
+        }
+      `),
       responseMappingTemplate: appsync.MappingTemplate.dynamoDbResultItem(),
     });
 
