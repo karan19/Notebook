@@ -3,6 +3,7 @@
 import { Authenticator, useTheme, View, Text, Image, useAuthenticator } from '@aws-amplify/ui-react';
 import '@aws-amplify/ui-react/styles.css';
 import { Notebook } from 'lucide-react';
+import { motion } from 'motion/react';
 
 const components = {
     Header() {
@@ -37,14 +38,33 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
             {/* Left: Branding Panel (Desktop Only) */}
             <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-blue-700 via-purple-700 to-indigo-900 flex-col items-center justify-center p-12 text-white">
                 {/* Ambient Blur Orbs */}
-                <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-400/20 rounded-full blur-[120px] animate-pulse" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-400/20 rounded-full blur-[120px] animate-pulse [animation-delay:2s]" />
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 1.5, ease: "easeOut" }}
+                    className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-400/20 rounded-full blur-[120px] animate-pulse"
+                />
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 1.5, ease: "easeOut", delay: 0.2 }}
+                    className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-400/20 rounded-full blur-[120px] animate-pulse [animation-delay:2s]"
+                />
 
                 <div className="relative z-10 max-w-lg w-full">
-                    <div className="space-y-4 text-center lg:text-left">
-                        <div className="w-12 h-12 bg-white/10 backdrop-blur-xl rounded-xl flex items-center justify-center border border-white/20 shadow-2xl mx-auto lg:mx-0">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, ease: "easeOut", delay: 0.2 }}
+                        className="space-y-4 text-center lg:text-left"
+                    >
+                        <motion.div
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            className="w-12 h-12 bg-white/10 backdrop-blur-xl rounded-xl flex items-center justify-center border border-white/20 shadow-2xl mx-auto lg:mx-0"
+                        >
                             <Notebook className="w-6 h-6 text-white" />
-                        </div>
+                        </motion.div>
                         <h2 className="text-5xl font-extrabold tracking-tight leading-tight">
                             Elevate your <br />
                             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-200 to-purple-200">digital notes.</span>
@@ -52,7 +72,7 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
                         <p className="text-blue-100/70 text-lg font-medium leading-relaxed">
                             A workspace designed for deep focus, structured clarity, and seamless cloud synchronization.
                         </p>
-                    </div>
+                    </motion.div>
                 </div>
 
             </div>
@@ -60,17 +80,23 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
             {/* Right: Interaction Area */}
             <div className="w-full lg:w-1/2 flex items-center justify-center p-8 lg:p-12 bg-white relative">
                 <div className="w-full max-w-md">
-                    <Authenticator
-                        components={components}
-                        formFields={formFields}
-                        hideSignUp={true}
+                    <motion.div
+                        initial={{ opacity: 0, y: 30 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, ease: "easeOut", delay: 0.4 }}
                     >
-                        {({ signOut, user }) => (
-                            <main className="w-full h-full">
-                                {children}
-                            </main>
-                        )}
-                    </Authenticator>
+                        <Authenticator
+                            components={components}
+                            formFields={formFields}
+                            hideSignUp={true}
+                        >
+                            {({ signOut, user }) => (
+                                <main className="w-full h-full">
+                                    {children}
+                                </main>
+                            )}
+                        </Authenticator>
+                    </motion.div>
                 </div>
             </div>
 
