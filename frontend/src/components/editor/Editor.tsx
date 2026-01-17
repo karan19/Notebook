@@ -5,7 +5,8 @@ import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 import { useNotebookStore } from "@/lib/store";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
+import { ChevronRight, Hash } from "lucide-react";
 
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
@@ -73,20 +74,35 @@ export function Editor({ id }: EditorProps) {
     }
 
     return (
-        <div className="flex flex-col h-full bg-[#f0f0f0] overflow-hidden">
-            <div className="flex-1 overflow-y-auto p-8 flex justify-center scroll-smooth pb-32">
-                <div
-                    className="w-full max-w-[850px] bg-white shadow-xl min-h-[1100px] relative"
-                >
-                    <div className="px-16 py-12 min-h-[1056px]">
-                        {/* Document Title Input */}
+        <div className="flex w-full h-full bg-white text-gray-900 font-sans">
+            {/* Main Content Area */}
+            <main className="flex-1 overflow-y-auto relative">
+                <div className="max-w-3xl mx-auto px-8 py-12 min-h-screen">
+                    {/* Breadcrumbs */}
+                    <div className="flex items-center gap-2 text-sm text-gray-400 mb-8 select-none">
+                        <span>Notebooks</span>
+                        <ChevronRight className="w-4 h-4" />
+                        <span className="text-gray-900 font-medium truncate max-w-[200px]">{title || "Untitled"}</span>
+                    </div>
+
+                    {/* Content Header */}
+                    <div className="mb-8 border-b border-gray-100 pb-8">
+                        <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-700 text-xs font-medium mb-4">
+                            Notebook Layout
+                        </div>
                         <input
                             value={title}
                             onChange={handleTitleChange}
-                            placeholder="Untitled"
-                            className="w-full text-4xl font-bold text-gray-900 placeholder:text-gray-300 border-none focus:ring-0 focus:outline-none bg-transparent mb-6 p-0"
+                            className="w-full text-4xl font-extrabold tracking-tight text-gray-900 border-none focus:ring-0 p-0 bg-transparent placeholder:text-gray-300"
+                            placeholder="Title"
                         />
+                        <p className="mt-4 text-lg text-gray-500 leading-relaxed">
+                            Start writing your documentation, notes, or ideas here.
+                        </p>
+                    </div>
 
+                    {/* Editor */}
+                    <div className="prose prose-slate max-w-none pb-32">
                         <BlockNoteView
                             editor={editor}
                             theme="light"
@@ -98,7 +114,19 @@ export function Editor({ id }: EditorProps) {
                         />
                     </div>
                 </div>
-            </div>
+            </main>
+
+            {/* On-page Nav (TOC) - Static for now, can be made dynamic later */}
+            <aside className="w-64 border-l border-gray-100 h-full hidden xl:block p-8 overflow-y-auto">
+                <div className="fixed w-48">
+                    <h4 className="text-xs font-semibold text-gray-900 uppercase tracking-wider mb-4 flex items-center gap-2">
+                        <Hash className="w-3 h-3" /> On This Page
+                    </h4>
+                    <ul className="space-y-2 text-sm text-gray-500 border-l border-gray-100 pl-4">
+                        <li className="hover:text-gray-900 cursor-pointer transition-colors">Top of Page</li>
+                    </ul>
+                </div>
+            </aside>
         </div>
     );
 }
