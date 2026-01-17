@@ -67,15 +67,10 @@ export default function NotebookPage({ params }: { params: Promise<{ id: string 
                             <Input
                                 value={title}
                                 onChange={(e) => handleTitleChange(e.target.value)}
-                                maxLength={50}
-                                className="h-10 py-0 px-2 border-transparent hover:bg-gray-50 focus:bg-white focus:border-gray-100 font-bold text-2xl w-full max-w-xl transition-all bg-transparent shadow-none focus-visible:ring-0 rounded-lg"
+                                maxLength={25}
+                                className="h-10 py-0 px-2 border-transparent hover:bg-gray-50 focus:bg-white focus:border-gray-100 font-bold text-2xl w-full max-w-md transition-all bg-transparent shadow-none focus-visible:ring-0 rounded-lg"
                                 placeholder="Untitled Selection"
                             />
-                        </div>
-                        <div className="flex items-center gap-3 text-[10px] font-bold text-gray-300 ml-2 uppercase tracking-[0.1em]">
-                            <span>Cloud Synchronized</span>
-                            <span className="w-1 h-1 bg-gray-200 rounded-full" />
-                            <span>{new Date(notebook.lastEditedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                     </div>
                 </div>

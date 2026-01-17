@@ -108,7 +108,7 @@ export default function Dashboard() {
               </p>
               {currentFilter === 'all' && !searchQuery && (
                 <Button onClick={handleCreateFirst} className="mt-8 bg-black hover:bg-black/90 text-white rounded-xl px-8 h-12">
-                  Create First Note
+                  Create First Notebook
                 </Button>
               )}
             </div>
