@@ -6,7 +6,8 @@ const s3Client = new S3Client({});
 const BUCKET_NAME = process.env.BUCKET_NAME!;
 
 export const handler = async (event: AppSyncResolverEvent<any>) => {
-    const { fieldName, arguments: args } = event;
+    const { arguments: args, info } = event;
+    const { fieldName } = info;
     const { id } = args;
 
     if (fieldName === 'getUploadUrl') {

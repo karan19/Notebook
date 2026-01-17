@@ -1,8 +1,8 @@
 type Notebook {
   id: ID!
+  isFavorite: Boolean
   title: String!
   snippet: String
-  isFavorite: Boolean
   contentKey: String!
   lastEditedAt: AWSTimestamp!
   createdAt: AWSTimestamp!

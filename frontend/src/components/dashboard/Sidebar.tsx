@@ -56,20 +56,6 @@ export function Sidebar() {
             </Button>
 
             <div className="flex flex-col gap-4">
-                {/* Search Bar */}
-                <div className="px-1">
-                    <div className="relative group">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-black transition-colors pointer-events-none" />
-                        <input
-                            type="text"
-                            placeholder="Quick Search..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full bg-gray-50 border-transparent focus:bg-white focus:border-gray-100 focus:ring-4 focus:ring-gray-50 rounded-xl py-2.5 pl-10 pr-4 text-sm font-medium transition-all"
-                        />
-                    </div>
-                </div>
-
                 <nav className="flex flex-col gap-1.5">
                     <p className="px-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Navigation</p>
                     {navItems.map((item) => (

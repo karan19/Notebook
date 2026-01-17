@@ -47,9 +47,9 @@ export default function Dashboard() {
       <Sidebar />
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Modern Navbar */}
-        <header className="h-20 border-b border-gray-100 flex items-center px-10 justify-between bg-white/80 backdrop-blur-md sticky top-0 z-10 w-full">
-          <div className="flex items-center gap-6 flex-1 max-w-2xl">
-            <div className="relative flex-1">
+        <header className="h-20 border-b border-gray-100 flex items-center px-10 bg-white/80 backdrop-blur-md sticky top-0 z-10 w-full relative">
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-xl px-4">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 placeholder="Search notebooks..."
@@ -60,7 +60,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 ml-auto">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 p-0 overflow-hidden hover:bg-gray-100 transition-all ring-offset-2 focus-visible:ring-2 focus-visible:ring-gray-200">

@@ -37,22 +37,21 @@ export class NotebookApiStack extends cdk.Stack {
     // Data Sources
     const dbSource = api.addDynamoDbDataSource('NotebookDataSource', props.notebookTable);
 
-    const lambdaSource = api.addLambdaDataSource(
-      'UrlHandlerDataSource',
-      new lambda.NodejsFunction(this, 'UrlHandler', {
-        entry: path.join(__dirname, '../lambda/url-handler.ts'),
-        environment: {
-          BUCKET_NAME: props.contentBucket.bucketName,
-        },
-        bundling: {
-          minify: true,
-          sourceMap: true,
-        },
-      })
-    );
+    const urlHandler = new lambda.NodejsFunction(this, 'UrlHandler', {
+      entry: path.join(__dirname, '../lambda/url-handler.ts'),
+      environment: {
+        BUCKET_NAME: props.contentBucket.bucketName,
+      },
+      bundling: {
+        minify: true,
+        sourceMap: true,
+      },
+    });
+
+    const lambdaSource = api.addLambdaDataSource('UrlHandlerDataSource', urlHandler);
 
     // Permissions
-    props.contentBucket.grantReadWrite(lambdaSource.grantPrincipal);
+    props.contentBucket.grantReadWrite(urlHandler);
 
     // Resolvers
     dbSource.createResolver('GetNotebook', {
