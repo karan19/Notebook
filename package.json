@@ -1,0 +1,8 @@
+{
+    "name": "notebook-monorepo",
+    "private": true,
+    "workspaces": [
+        "frontend",
+        "backend"
+    ]
+}
