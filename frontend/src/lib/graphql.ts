@@ -8,6 +8,7 @@ export const listNotebooks = /* GraphQL */ `
       contentKey
       lastEditedAt
       createdAt
+      tags
     }
   }
 `;
@@ -22,6 +23,7 @@ export const getNotebook = /* GraphQL */ `
       contentKey
       lastEditedAt
       createdAt
+      tags
     }
   }
 `;
@@ -35,19 +37,21 @@ export const createNotebook = /* GraphQL */ `
       contentKey
       createdAt
       lastEditedAt
+      tags
     }
   }
 `;
 
 export const updateNotebook = /* GraphQL */ `
-  mutation UpdateNotebook($id: ID!, $title: String, $snippet: String, $isFavorite: Boolean, $contentKey: String) {
-    updateNotebook(id: $id, title: $title, snippet: $snippet, isFavorite: $isFavorite, contentKey: $contentKey) {
+  mutation UpdateNotebook($id: ID!, $title: String, $snippet: String, $isFavorite: Boolean, $contentKey: String, $tags: [String]) {
+    updateNotebook(id: $id, title: $title, snippet: $snippet, isFavorite: $isFavorite, contentKey: $contentKey, tags: $tags) {
       id
       title
       snippet
       isFavorite
       contentKey
       lastEditedAt
+      tags
     }
   }
 `;

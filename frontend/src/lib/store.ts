@@ -18,6 +18,7 @@ export interface Notebook {
     isFavorite?: boolean;
     contentKey: string;
     content?: string; // Loaded on demand
+    tags: string[];
     lastEditedAt: number;
     createdAt: number;
 }
@@ -99,7 +100,8 @@ export const useNotebookStore = create<NotebookStore>((set, get) => ({
                     title: updates.title,
                     snippet: updates.snippet,
                     isFavorite: updates.isFavorite,
-                    contentKey: updates.contentKey
+                    contentKey: updates.contentKey,
+                    tags: updates.tags
                 }
             });
         } catch (error) {

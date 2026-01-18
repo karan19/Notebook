@@ -95,6 +95,7 @@ export class NotebookApiStack extends cdk.Stack {
             "title": \$util.dynamodb.toDynamoDBJson(\$util.defaultIfNullOrEmpty(\$ctx.args.title, "Untitled Document")),
             "isFavorite": \$util.dynamodb.toDynamoDBJson(false),
             "contentKey": \$util.dynamodb.toDynamoDBJson("notes/\${id}.html"),
+            "tags": \$util.dynamodb.toDynamoDBJson([]),
             "createdAt": \$util.dynamodb.toDynamoDBJson(\$util.time.nowEpochMilliSeconds()),
             "lastEditedAt": \$util.dynamodb.toDynamoDBJson(\$util.time.nowEpochMilliSeconds())
           }
@@ -130,6 +131,11 @@ export class NotebookApiStack extends cdk.Stack {
         #if(\$ctx.args.contentKey)
           #set(\$expression = "\${expression}, contentKey = :contentKey")
           \$util.qr(\$expressionValues.put(":contentKey", { "S": \$ctx.args.contentKey }))
+        #end
+
+        #if(\$ctx.args.tags)
+          #set(\$expression = "\${expression}, tags = :tags")
+          \$util.qr(\$expressionValues.put(":tags", \$util.dynamodb.toDynamoDBJson(\$ctx.args.tags)))
         #end
 
         {
