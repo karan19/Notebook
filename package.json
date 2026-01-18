@@ -4,5 +4,8 @@
     "workspaces": [
         "frontend",
         "backend"
-    ]
+    ],
+    "dependencies": {
+        "next": "15.1.0"
+    }
 }
