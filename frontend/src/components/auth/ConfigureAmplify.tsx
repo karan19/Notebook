@@ -2,6 +2,7 @@
 
 import { Amplify } from 'aws-amplify';
 
+// Rebuild for env vars
 Amplify.configure({
     Auth: {
         Cognito: {
