@@ -12,6 +12,7 @@ export class NotebookDataStack extends cdk.Stack {
 
         // DynamoDB Table for Notebook Metadata
         this.notebookTable = new dynamodb.Table(this, 'NotebookTable', {
+            tableName: 'Notebook-table',
             partitionKey: { name: 'id', type: dynamodb.AttributeType.STRING },
             billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
             removalPolicy: cdk.RemovalPolicy.DESTROY, // For dev convenience
@@ -19,6 +20,7 @@ export class NotebookDataStack extends cdk.Stack {
 
         // S3 Bucket for heavy document content
         this.contentBucket = new s3.Bucket(this, 'ContentBucket', {
+            bucketName: `notebook-content-${cdk.Aws.ACCOUNT_ID}-${cdk.Aws.REGION}`,
             versioned: true,
             encryption: s3.BucketEncryption.S3_MANAGED,
             cors: [
