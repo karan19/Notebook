@@ -121,7 +121,7 @@ export function Editor({ id }: EditorProps) {
                             <input
                                 value={title}
                                 onChange={handleTitleChange}
-                                className="flex-1 text-6xl font-extrabold tracking-tight text-gray-900 border-none focus:ring-0 p-0 bg-transparent placeholder:text-gray-300"
+                                className="flex-1 text-8xl font-extrabold tracking-tight text-gray-900 border-none focus:ring-0 p-0 bg-transparent placeholder:text-gray-300"
                                 placeholder="Title"
                             />
                         </div>
