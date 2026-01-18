@@ -121,7 +121,7 @@ export function Editor({ id }: EditorProps) {
                             <input
                                 value={title}
                                 onChange={handleTitleChange}
-                                style={{ fontSize: "5rem", height: "auto" }}
+                                style={{ fontSize: "50px", height: "auto" }}
                                 className="flex-1 font-extrabold tracking-tight text-gray-900 border-none focus:ring-0 p-0 bg-transparent placeholder:text-gray-300 leading-tight"
                                 placeholder="Title"
                             />
