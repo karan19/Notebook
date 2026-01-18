@@ -122,7 +122,7 @@ export function Editor({ id }: EditorProps) {
                                 value={title}
                                 onChange={handleTitleChange}
                                 style={{ fontSize: "50px", height: "auto" }}
-                                className="flex-1 font-extrabold tracking-tight text-gray-900 border-none focus:ring-0 p-0 bg-transparent placeholder:text-gray-300 leading-tight"
+                                className="flex-1 font-extrabold tracking-tight text-gray-900 border-none outline-none focus:outline-none focus:ring-0 p-0 bg-transparent placeholder:text-gray-300 leading-tight"
                                 placeholder="Title"
                             />
                         </div>
@@ -142,7 +142,7 @@ export function Editor({ id }: EditorProps) {
                                 value={newTag}
                                 onChange={(e) => setNewTag(e.target.value)}
                                 onKeyDown={handleTagAdd}
-                                className="text-sm text-gray-500 border-none focus:ring-0 p-0 bg-transparent placeholder:text-gray-300 w-32"
+                                className="text-sm text-gray-500 border-none outline-none focus:outline-none focus:ring-0 p-0 bg-transparent placeholder:text-gray-300 w-32"
                                 placeholder="+ Add tag"
                             />
                         </div>
