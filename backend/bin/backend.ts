@@ -6,6 +6,10 @@ import { NotebookApiStack } from '../lib/api-stack';
 
 const app = new cdk.App();
 
+// Apply global tags
+cdk.Tags.of(app).add('Stage', 'Production');
+cdk.Tags.of(app).add('Application', 'Notebook');
+
 const region = process.env.COGNITO_REGION || 'us-east-2';
 const userPoolId = process.env.COGNITO_USER_POOL_ID;
 
