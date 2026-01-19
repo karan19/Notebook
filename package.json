@@ -1,0 +1,11 @@
+{
+    "name": "notebook-monorepo",
+    "private": true,
+    "workspaces": [
+        "frontend",
+        "backend"
+    ],
+    "dependencies": {
+        "next": "15.1.0"
+    }
+}
