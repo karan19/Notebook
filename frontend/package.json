@@ -52,6 +52,7 @@
   },
   "optionalDependencies": {
     "@lightningcss/linux-x64-gnu": "1.28.2",
-    "lightningcss-linux-x64-gnu": "1.28.2"
+    "lightningcss-linux-x64-gnu": "1.28.2",
+    "@tailwindcss/oxide-linux-x64-gnu": "4.0.0"
   }
 }
