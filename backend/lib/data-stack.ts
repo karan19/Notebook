@@ -15,7 +15,7 @@ export class NotebookDataStack extends cdk.Stack {
             tableName: 'Notebook-table',
             partitionKey: { name: 'id', type: dynamodb.AttributeType.STRING },
             billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-            removalPolicy: cdk.RemovalPolicy.DESTROY, // For dev convenience
+            removalPolicy: cdk.RemovalPolicy.RETAIN,
         });
 
         // S3 Bucket for heavy document content
@@ -34,8 +34,8 @@ export class NotebookDataStack extends cdk.Stack {
                     allowedHeaders: ['*'],
                 },
             ],
-            removalPolicy: cdk.RemovalPolicy.DESTROY, // For dev convenience
-            autoDeleteObjects: true,
+            removalPolicy: cdk.RemovalPolicy.RETAIN,
+            autoDeleteObjects: false,
         });
     }
 }
