@@ -6,7 +6,7 @@ import "@blocknote/mantine/style.css";
 import { useNotebookStore, Page } from "@/lib/store";
 import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, List, Plus, Trash2, X, PanelRightClose } from "lucide-react";
+import { ChevronLeft, ChevronRight, List, Plus, Trash2, X, PanelRightClose, Cloud, Check, Loader2, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
 
@@ -219,10 +219,10 @@ export function Editor({ id }: EditorProps) {
             <main className="flex-1 flex flex-col h-full overflow-hidden relative">
                 {/* Scrollable Editor Area */}
                 <div className="flex-1 overflow-y-auto scroll-smooth pb-32">
-                    <div className="max-w-4xl mx-auto px-4 py-8 min-h-screen flex items-start justify-center">
+                    <div className="max-w-6xl mx-auto px-4 py-8 min-h-screen flex items-start justify-center">
 
                         {/* Editor Column */}
-                        <div className="flex-1 min-w-0 max-w-4xl">
+                        <div className="flex-1 min-w-0 max-w-6xl">
                             {/* Back Button */}
                             <div className="mb-4">
                                 <Link
@@ -237,13 +237,33 @@ export function Editor({ id }: EditorProps) {
 
                             {/* Paper Sheet View */}
                             <div className="bg-white shadow-[0_0_50px_rgba(0,0,0,0.04)] border border-gray-100 rounded-sm min-h-[1100px] flex flex-col relative transition-all">
-                                {/* Page Number Indicator */}
-                                <div className="absolute top-6 right-6 text-xs font-mono text-gray-300 select-none">
-                                    {activePageIndex + 1} / {pages.length}
+                                {/* Page Number & Save Status */}
+                                <div className="absolute top-6 right-6 flex items-center gap-3">
+                                    {/* Save Status Icons */}
+                                    <div className="flex items-center text-gray-300">
+                                        {saveStatus === 'saving' && (
+                                            <Loader2 className="w-3.5 h-3.5 animate-spin text-gray-400" />
+                                        )}
+                                        {saveStatus === 'saved' && (
+                                            <Check className="w-3.5 h-3.5 text-green-500" />
+                                        )}
+                                        {saveStatus === 'error' && (
+                                            <button onClick={handleRetrySave} title="Save failed. Click to retry.">
+                                                <AlertCircle className="w-3.5 h-3.5 text-red-500 hover:text-red-600" />
+                                            </button>
+                                        )}
+                                        {saveStatus === 'idle' && (
+                                            <Cloud className="w-3.5 h-3.5" />
+                                        )}
+                                    </div>
+
+                                    <div className="text-xs font-mono text-gray-300 select-none">
+                                        {activePageIndex + 1} / {pages.length}
+                                    </div>
                                 </div>
 
                                 {/* Header within Paper - REDUCED PADDING */}
-                                <div className="px-12 pt-6 pb-2 border-b border-gray-50/50">
+                                <div className="px-8 pt-6 pb-2 border-b border-gray-50/50">
                                     <input
                                         value={title}
                                         onChange={handleTitleChange}
@@ -273,7 +293,7 @@ export function Editor({ id }: EditorProps) {
                                 </div>
 
                                 {/* Editor Content - REDUCED PADDING */}
-                                <div className="px-12 pt-4 pb-12 flex-1 relative editor-paper">
+                                <div className="px-8 pt-4 pb-12 flex-1 relative editor-paper">
                                     {isContentLoading && (
                                         <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10 backdrop-blur-sm">
                                             <div className="flex flex-col items-center gap-2">
@@ -296,42 +316,9 @@ export function Editor({ id }: EditorProps) {
                     </div>
                 </div>
 
-                {/* Fixed Top-Right Save Status */}
-                <div className="fixed top-6 right-8 z-[60] pointer-events-none">
-                    <div className="bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm border border-gray-100 flex items-center gap-2 text-xs font-medium transition-all pointer-events-auto">
-                        {saveStatus === 'saving' && (
-                            <>
-                                <LoadingSpinner size={12} className="text-gray-400" />
-                                <span className="text-gray-500">Saving...</span>
-                            </>
-                        )}
-                        {saveStatus === 'saved' && (
-                            <>
-                                <div className="w-2 h-2 rounded-full bg-green-500" />
-                                <span className="text-gray-600">Saved</span>
-                            </>
-                        )}
-                        {saveStatus === 'error' && (
-                            <>
-                                <div className="w-2 h-2 rounded-full bg-red-500" />
-                                <span className="text-red-600">Save failed</span>
-                                <button
-                                    onClick={handleRetrySave}
-                                    className="ml-1 text-gray-400 hover:text-gray-800 underline decoration-gray-300 hover:decoration-gray-800 transition-all"
-                                >
-                                    Retry
-                                </button>
-                            </>
-                        )}
-                        {saveStatus === 'idle' && (
-                            <span className="text-gray-300">Ready</span>
-                        )}
-                    </div>
-                </div>
-
                 {/* Pagination Control Bar (Bottom Sticky) */}
                 <div className="absolute bottom-0 w-full bg-white/80 backdrop-blur-md border-t border-gray-200 z-50">
-                    <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+                    <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
                         {/* Left: Delete Page (only if > 1 page) */}
                         {pages.length > 1 ? (
                             <button
