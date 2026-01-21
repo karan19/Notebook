@@ -11,13 +11,21 @@ const getClient = () => {
     return client;
 };
 
+export interface Page {
+    id: string;
+    title?: string;
+    contentKey: string;
+    content?: string; // Loaded on demand
+}
+
 export interface Notebook {
     id: string;
     title: string;
     snippet?: string;
     isFavorite?: boolean;
     contentKey: string;
-    content?: string; // Loaded on demand
+    content?: string; // DEPRECATED: use pages instead
+    pages: Page[];
     tags: string[];
     lastEditedAt: number;
     createdAt: number;
@@ -31,14 +39,17 @@ interface NotebookStore {
     updateNotebook: (id: string, updates: Partial<Notebook>) => Promise<void>;
     deleteNotebook: (id: string) => Promise<void>;
     getNotebook: (id: string) => Promise<Notebook | undefined>;
-    saveContent: (id: string, html: string) => Promise<void>;
-    loadContent: (id: string) => Promise<string>;
+    saveContent: (id: string, html: string, pageId?: string) => Promise<void>;
+    loadContent: (id: string, pageId?: string) => Promise<string>;
     toggleFavorite: (id: string) => Promise<void>;
     currentFilter: 'all' | 'favorites' | 'trash';
     setFilter: (filter: 'all' | 'favorites' | 'trash') => void;
     searchQuery: string;
     setSearchQuery: (query: string) => void;
     uploadAsset: (file: File) => Promise<string>;
+    addPage: (notebookId: string, title?: string) => Promise<void>;
+    updatePage: (notebookId: string, pageId: string, title: string) => Promise<void>;
+    deletePage: (notebookId: string, pageId: string) => Promise<void>;
 }
 
 export const useNotebookStore = create<NotebookStore>((set, get) => ({
@@ -55,7 +66,12 @@ export const useNotebookStore = create<NotebookStore>((set, get) => ({
         try {
             const result = await getClient().graphql({ query: queries.listNotebooks }) as any;
             const items = result.data.listNotebooks || [];
-            set({ notebooks: items, loading: false });
+            // Ensure pages is always an array
+            const sanitizedItems = items.map((item: any) => ({
+                ...item,
+                pages: item.pages || []
+            }));
+            set({ notebooks: sanitizedItems, loading: false });
         } catch (error: any) {
             console.error("Error fetching notebooks:");
             if (error.errors) {
@@ -75,7 +91,7 @@ export const useNotebookStore = create<NotebookStore>((set, get) => ({
             }) as any;
             const newNotebook = result.data.createNotebook;
             set((state) => ({
-                notebooks: [newNotebook, ...state.notebooks],
+                notebooks: [{ ...newNotebook, pages: newNotebook.pages || [] }, ...state.notebooks],
             }));
             return newNotebook.id;
         } catch (error) {
@@ -101,12 +117,16 @@ export const useNotebookStore = create<NotebookStore>((set, get) => ({
                     snippet: updates.snippet,
                     isFavorite: updates.isFavorite,
                     contentKey: updates.contentKey,
-                    tags: updates.tags
+                    tags: updates.tags,
+                    pages: updates.pages?.map(p => ({
+                        id: p.id,
+                        title: p.title,
+                        contentKey: p.contentKey
+                    }))
                 }
             });
         } catch (error) {
             console.error("Error updating notebook:", error);
-            // Revert on error?
         }
     },
 
@@ -127,7 +147,7 @@ export const useNotebookStore = create<NotebookStore>((set, get) => ({
 
     getNotebook: async (id) => {
         const existing = get().notebooks.find((nb) => nb.id === id);
-        if (existing && existing.content) return existing;
+        if (existing && existing.pages && existing.pages.length > 0) return existing;
 
         try {
             const result = await getClient().graphql({
@@ -136,9 +156,11 @@ export const useNotebookStore = create<NotebookStore>((set, get) => ({
             }) as any;
             const nb = result.data.getNotebook;
             if (nb) {
+                const sanitizedNb = { ...nb, pages: nb.pages || [] };
                 set((state) => ({
-                    notebooks: state.notebooks.map(n => n.id === id ? { ...n, ...nb } : n)
+                    notebooks: state.notebooks.map(n => n.id === id ? { ...n, ...sanitizedNb } : n)
                 }));
+                return sanitizedNb;
             }
             return nb;
         } catch (error) {
@@ -147,12 +169,12 @@ export const useNotebookStore = create<NotebookStore>((set, get) => ({
         }
     },
 
-    saveContent: async (id, html) => {
+    saveContent: async (id, html, pageId) => {
         try {
             // 1. Get Upload URL
             const urlResult = await getClient().graphql({
                 query: queries.getUploadUrl,
-                variables: { id }
+                variables: { id, pageId }
             }) as any;
             const uploadUrl = urlResult.data.getUploadUrl;
 
@@ -163,66 +185,105 @@ export const useNotebookStore = create<NotebookStore>((set, get) => ({
                 headers: { 'Content-Type': 'text/html' }
             });
 
-            // 3. Update snippet in DB (optional, first 100 chars of text)
+            // 3. Update snippet and local cache
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = html;
             const snippet = tempDiv.innerText.slice(0, 100) + '...';
 
-            await get().updateNotebook(id, { snippet });
+            if (pageId) {
+                set((state) => ({
+                    notebooks: state.notebooks.map((nb) =>
+                        nb.id === id ? {
+                            ...nb,
+                            snippet,
+                            pages: nb.pages.map(p => p.id === pageId ? { ...p, content: html } : p)
+                        } : nb
+                    ),
+                }));
+            } else {
+                await get().updateNotebook(id, { snippet });
+            }
         } catch (error) {
             console.error("Error saving content to S3:", error);
         }
     },
 
-    loadContent: async (id) => {
+    loadContent: async (id, pageId) => {
         try {
+            // Check cache first
+            const notebook = get().notebooks.find(nb => nb.id === id);
+            if (pageId) {
+                const page = notebook?.pages.find(p => p.id === pageId);
+                if (page?.content) return page.content;
+            } else if (notebook?.content) {
+                return notebook.content;
+            }
+
             // 1. Get Download URL
-            console.log(`[Store] Requesting download URL for notebook: ${id}`);
             const urlResult = await getClient().graphql({
                 query: queries.getDownloadUrl,
-                variables: { id }
+                variables: { id, pageId }
             }) as any;
 
-            if (urlResult.errors) {
-                console.error("[Store] AppSync errors for getDownloadUrl:", urlResult.errors);
-                return "";
-            }
-
+            if (urlResult.errors) return "";
             const downloadUrl = urlResult.data?.getDownloadUrl;
-            if (!downloadUrl) {
-                console.error("[Store] No download URL returned from AppSync");
-                return "";
-            }
+            if (!downloadUrl) return "";
 
             // 2. Fetch from S3
             const response = await fetch(downloadUrl);
-
-            if (response.status === 404 || response.status === 403) {
-                // If the file doesn't exist yet, it's a new notebook - silent return
-                return "";
-            }
-
-            if (!response.ok) {
-                console.error(`[Store] S3 Fetch failed with status ${response.status}:`, await response.text());
-                return "";
-            }
+            if (!response.ok) return "";
 
             const html = await response.text();
 
             // 3. Cache in store
             set((state) => ({
                 notebooks: state.notebooks.map((nb) =>
-                    nb.id === id ? { ...nb, content: html } : nb
+                    nb.id === id ? (
+                        pageId ? {
+                            ...nb,
+                            pages: nb.pages.map(p => p.id === pageId ? { ...p, content: html } : p)
+                        } : { ...nb, content: html }
+                    ) : nb
                 ),
             }));
 
             return html;
         } catch (error: any) {
             console.error("Error loading content from S3:", error);
-            // Log more details if it's a TypeError or similar
-            if (error.message) console.error("Error Message:", error.message);
             return "";
         }
+    },
+
+    addPage: async (notebookId, title = "New Page") => {
+        const notebook = get().notebooks.find(n => n.id === notebookId);
+        if (!notebook) return;
+
+        const newPage: Page = {
+            id: crypto.randomUUID(),
+            title,
+            contentKey: `notes/${notebookId}/pages/${Date.now()}.html`,
+        };
+
+        const updatedPages = [...notebook.pages, newPage];
+        await get().updateNotebook(notebookId, { pages: updatedPages });
+    },
+
+    updatePage: async (notebookId, pageId, title) => {
+        const notebook = get().notebooks.find(n => n.id === notebookId);
+        if (!notebook) return;
+
+        const updatedPages = notebook.pages.map(p =>
+            p.id === pageId ? { ...p, title } : p
+        );
+        await get().updateNotebook(notebookId, { pages: updatedPages });
+    },
+
+    deletePage: async (notebookId, pageId) => {
+        const notebook = get().notebooks.find(n => n.id === notebookId);
+        if (!notebook) return;
+
+        const updatedPages = notebook.pages.filter(p => p.id !== pageId);
+        await get().updateNotebook(notebookId, { pages: updatedPages });
     },
 
     uploadAsset: async (file: File) => {

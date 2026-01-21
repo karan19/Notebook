@@ -12,18 +12,22 @@ export const handler = async (event: AppSyncResolverEvent<any>) => {
     const { id } = args;
 
     if (fieldName === 'getUploadUrl') {
+        const { pageId } = args;
+        const key = pageId ? `notes/${id}/pages/${pageId}.html` : `notes/${id}.html`;
         const command = new PutObjectCommand({
             Bucket: BUCKET_NAME,
-            Key: `notes/${id}.html`,
+            Key: key,
             ContentType: 'text/html',
         });
         return await getSignedUrl(s3Client, command, { expiresIn: 3600 });
     }
 
     if (fieldName === 'getDownloadUrl') {
+        const { pageId } = args;
+        const key = pageId ? `notes/${id}/pages/${pageId}.html` : `notes/${id}.html`;
         const command = new GetObjectCommand({
             Bucket: BUCKET_NAME,
-            Key: `notes/${id}.html`,
+            Key: key,
         });
         return await getSignedUrl(s3Client, command, { expiresIn: 3600 });
     }

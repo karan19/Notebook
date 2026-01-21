@@ -138,6 +138,11 @@ export class NotebookApiStack extends cdk.Stack {
           \$util.qr(\$expressionValues.put(":tags", \$util.dynamodb.toDynamoDBJson(\$ctx.args.tags)))
         #end
 
+        #if(\$ctx.args.pages)
+          #set(\$expression = "\${expression}, pages = :pages")
+          \$util.qr(\$expressionValues.put(":pages", \$util.dynamodb.toDynamoDBJson(\$ctx.args.pages)))
+        #end
+
         {
           "version": "2018-05-29",
           "operation": "UpdateItem",

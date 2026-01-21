@@ -1,13 +1,13 @@
-"use client";
-
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
-import { useNotebookStore } from "@/lib/store";
-import { useEffect, useState } from "react";
+import { useNotebookStore, Page } from "@/lib/store";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, FileText, ChevronRight } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { cn } from "@/lib/utils";
 
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
@@ -16,55 +16,68 @@ interface EditorProps {
 }
 
 export function Editor({ id }: EditorProps) {
-    const { getNotebook, updateNotebook, loadContent, saveContent, uploadAsset } = useNotebookStore();
+    const { getNotebook, updateNotebook, loadContent, saveContent, uploadAsset, addPage, deletePage, updatePage } = useNotebookStore();
     const [title, setTitle] = useState("Untitled");
     const [tags, setTags] = useState<string[]>([]);
     const [newTag, setNewTag] = useState("");
     const [isLoaded, setIsLoaded] = useState(false);
+    const [activePageId, setActivePageId] = useState<string | null>(null);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const editorRef = useRef<any>(null);
 
     // Initialize editor
     const editor = useCreateBlockNote({
         uploadFile: uploadAsset,
     });
+    editorRef.current = editor;
 
-    // Load content from S3 via store
+    // Load notebook metadata and handle initial page
+    useEffect(() => {
+        async function init() {
+            const nb = await getNotebook(id);
+            if (nb) {
+                setTitle(nb.title);
+                setTags(nb.tags || []);
+
+                // Auto-migrate old notebooks or select first page
+                if (nb.pages.length === 0) {
+                    const firstPageId = crypto.randomUUID();
+                    const firstPage: Page = {
+                        id: firstPageId,
+                        title: "Page 1",
+                        contentKey: nb.contentKey || `notes/${id}/pages/${firstPageId}.html`
+                    };
+                    await updateNotebook(id, { pages: [firstPage] });
+                    setActivePageId(firstPageId);
+                } else if (!activePageId) {
+                    setActivePageId(nb.pages[0].id);
+                }
+                setIsLoaded(true);
+            }
+        }
+        init();
+    }, [id, getNotebook, updateNotebook, activePageId]);
+
+    // Load content when activePageId changes
     useEffect(() => {
         async function load() {
-            // Only load if not loaded or if it's a different ID
-            if (editor && !isLoaded) {
+            if (editor && activePageId && isLoaded) {
                 try {
-                    const html = await loadContent(id);
+                    const html = await loadContent(id, activePageId);
                     if (html) {
                         const blocks = await editor.tryParseHTMLToBlocks(html);
                         editor.replaceBlocks(editor.document, blocks);
+                    } else {
+                        // Clear editor for new pages
+                        editor.replaceBlocks(editor.document, [editor.document[0]]);
                     }
-                    setIsLoaded(true);
                 } catch (e) {
-                    console.error("Failed to load notebook content", e);
-                    setIsLoaded(true);
+                    console.error("Failed to load page content", e);
                 }
             }
         }
         load();
-    }, [editor, id, isLoaded, loadContent]);
-
-    useEffect(() => {
-        // Sync local title and tags with store when loaded
-        const nb = getNotebook(id);
-        if (nb instanceof Promise) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            nb.then((n: any) => {
-                if (n) {
-                    setTitle(n.title);
-                    setTags(n.tags || []);
-                }
-            });
-        } else if (nb) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            setTitle((nb as any).title);
-            setTags((nb as any).tags || []);
-        }
-    }, [id, getNotebook, isLoaded]);
+    }, [editor, id, activePageId, isLoaded, loadContent]);
 
     const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newTitle = e.target.value;
@@ -91,9 +104,10 @@ export function Editor({ id }: EditorProps) {
         updateNotebook(id, { tags: updatedTags });
     };
 
-    if (!editor) {
-        return null;
-    }
+    const notebook = useNotebookStore(state => state.notebooks.find(n => n.id === id));
+    const activePage = notebook?.pages.find(p => p.id === activePageId);
+
+    if (!editor) return null;
 
     if (!isLoaded) {
         return (
@@ -104,66 +118,146 @@ export function Editor({ id }: EditorProps) {
     }
 
     return (
-        <div className="flex w-full h-full bg-white text-gray-900 font-sans">
-            {/* Main Content Area */}
-            <main className="flex-1 overflow-y-auto relative">
-                <div className="max-w-3xl mx-auto px-8 py-12 min-h-screen">
-                    {/* Content Header */}
-                    <div className="mb-8 border-b border-gray-100 pb-8">
-                        <div className="flex items-center gap-4 mb-4">
-                            <Link
-                                href="/"
-                                className="group flex items-center justify-center w-10 h-10 -ml-2 rounded-full hover:bg-gray-100 transition-colors"
-                                title="Back to Dashboard"
+        <div className="flex w-full h-full bg-[#f8f9fa] text-gray-900 font-sans overflow-hidden">
+            {/* Pages Sidebar */}
+            <AnimatePresence mode="wait">
+                {isSidebarOpen && (
+                    <motion.aside
+                        initial={{ width: 0, opacity: 0 }}
+                        animate={{ width: 280, opacity: 1 }}
+                        exit={{ width: 0, opacity: 0 }}
+                        className="h-full bg-white border-r border-gray-200 flex flex-col z-20"
+                    >
+                        <div className="p-6 flex items-center justify-between">
+                            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Pages</h2>
+                            <button
+                                onClick={() => addPage(id)}
+                                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-500 hover:text-gray-900"
                             >
-                                <ChevronLeft className="w-6 h-6 text-gray-400 group-hover:text-gray-900 transition-colors" />
-                            </Link>
-                            <input
-                                value={title}
-                                onChange={handleTitleChange}
-                                style={{ fontSize: "50px", height: "auto" }}
-                                className="flex-1 font-extrabold tracking-tight text-gray-900 border-none outline-none focus:outline-none focus:ring-0 p-0 bg-transparent placeholder:text-gray-300 leading-tight"
-                                placeholder="Title"
-                            />
+                                <Plus className="w-4 h-4" />
+                            </button>
                         </div>
 
-                        {/* Tags Input */}
-                        <div className="flex flex-wrap items-center gap-2 pl-12">
-                            {tags.map(tag => (
-                                <span
-                                    key={tag}
-                                    onClick={() => handleTagRemove(tag)}
-                                    className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-md hover:bg-red-50 hover:text-red-500 cursor-pointer transition-colors"
+                        <div className="flex-1 overflow-y-auto px-3 space-y-1">
+                            {notebook?.pages.map((page) => (
+                                <div
+                                    key={page.id}
+                                    onClick={() => setActivePageId(page.id)}
+                                    className={cn(
+                                        "group flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all",
+                                        activePageId === page.id
+                                            ? "bg-gray-100 text-gray-900 shadow-sm"
+                                            : "text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+                                    )}
                                 >
-                                    #{tag}
-                                </span>
+                                    <FileText className={cn("w-4 h-4", activePageId === page.id ? "text-black" : "text-gray-400")} />
+                                    <input
+                                        value={page.title || ""}
+                                        onChange={(e) => updatePage(id, page.id, e.target.value)}
+                                        className="bg-transparent border-none outline-none focus:ring-0 p-0 text-sm font-medium flex-1 cursor-pointer"
+                                        placeholder="Untitled Page"
+                                        onClick={(e) => e.stopPropagation()}
+                                    />
+                                    {notebook.pages.length > 1 && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                deletePage(id, page.id);
+                                                if (activePageId === page.id) {
+                                                    setActivePageId(notebook.pages.find(p => p.id !== page.id)?.id || null);
+                                                }
+                                            }}
+                                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 hover:text-red-500 rounded-md transition-all"
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                    )}
+                                </div>
                             ))}
-                            <input
-                                value={newTag}
-                                onChange={(e) => setNewTag(e.target.value)}
-                                onKeyDown={handleTagAdd}
-                                className="text-sm text-gray-500 border-none outline-none focus:outline-none focus:ring-0 p-0 bg-transparent placeholder:text-gray-300 w-32"
-                                placeholder="+ Add tag"
+                        </div>
+                    </motion.aside>
+                )}
+            </AnimatePresence>
+
+            {/* Sidebar toggle */}
+            <button
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className={cn(
+                    "absolute left-0 top-1/2 -translate-y-1/2 z-30 p-1 bg-white border border-gray-200 rounded-r-lg shadow-sm hover:bg-gray-50 transition-all",
+                    !isSidebarOpen ? "translate-x-0" : "translate-x-[280px]"
+                )}
+            >
+                {isSidebarOpen ? <ChevronLeft className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
+            </button>
+
+            {/* Main Content Area */}
+            <main className="flex-1 overflow-y-auto relative bg-[#f8f9fa] scroll-smooth">
+                <div className="max-w-4xl mx-auto px-4 py-16 min-h-screen">
+                    {/* Paper Sheet View */}
+                    <div className="bg-white shadow-[0_0_50px_rgba(0,0,0,0.04)] border border-gray-100 rounded-sm min-h-[1100px] flex flex-col">
+                        {/* Header within Paper */}
+                        <div className="px-16 pt-20 pb-10 border-b border-gray-50">
+                            <div className="flex items-center gap-4 mb-8">
+                                <Link
+                                    href="/"
+                                    className="group flex items-center justify-center w-10 h-10 -ml-2 rounded-full hover:bg-gray-100 transition-colors"
+                                    title="Back to Dashboard"
+                                >
+                                    <ChevronLeft className="w-6 h-6 text-gray-400 group-hover:text-gray-900 transition-colors" />
+                                </Link>
+                                <input
+                                    value={title}
+                                    onChange={handleTitleChange}
+                                    style={{ fontSize: "40px", height: "auto" }}
+                                    className="flex-1 font-bold tracking-tight text-gray-900 border-none outline-none focus:outline-none focus:ring-0 p-0 bg-transparent placeholder:text-gray-200 leading-tight"
+                                    placeholder="Notebook Title"
+                                />
+                            </div>
+
+                            {/* Tags */}
+                            <div className="flex flex-wrap items-center gap-2 mb-4">
+                                {tags.map(tag => (
+                                    <span
+                                        key={tag}
+                                        onClick={() => handleTagRemove(tag)}
+                                        className="px-2 py-0.5 bg-gray-50 text-gray-400 text-[10px] font-bold uppercase tracking-wider rounded border border-gray-100 hover:bg-red-50 hover:text-red-500 hover:border-red-100 cursor-pointer transition-all"
+                                    >
+                                        #{tag}
+                                    </span>
+                                ))}
+                                <input
+                                    value={newTag}
+                                    onChange={(e) => setNewTag(e.target.value)}
+                                    onKeyDown={handleTagAdd}
+                                    className="text-[10px] font-bold text-gray-300 border-none outline-none focus:outline-none focus:ring-0 p-0 bg-transparent placeholder:text-gray-200 w-24 uppercase tracking-wider"
+                                    placeholder="+ Add tag"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Editor Content */}
+                        <div className="px-12 py-12 flex-1 relative editor-paper">
+                            <BlockNoteView
+                                editor={editor}
+                                theme="light"
+                                onChange={() => {
+                                    if (activePageId) {
+                                        const html = editor.blocksToFullHTML(editor.document);
+                                        saveContent(id, html, activePageId);
+                                    }
+                                }}
                             />
                         </div>
                     </div>
 
-                    {/* Editor */}
-                    <div className="prose prose-slate max-w-none pb-32">
-                        <BlockNoteView
-                            editor={editor}
-                            theme="light"
-                            onChange={() => {
-                                // Debounced save logic
-                                const html = editor.blocksToFullHTML(editor.document);
-                                saveContent(id, html);
-                            }}
-                        />
+                    {/* Page Break Indication */}
+                    <div className="h-16 flex items-center justify-center opacity-20 pointer-events-none">
+                        <div className="w-full h-px bg-dashed bg-gray-300" />
+                        <span className="mx-4 text-[10px] font-bold text-gray-400 tracking-widest uppercase whitespace-nowrap">End of {activePage?.title || "Page"}</span>
+                        <div className="w-full h-px bg-dashed bg-gray-300" />
                     </div>
                 </div>
             </main>
-
-
         </div>
     );
 }

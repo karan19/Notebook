@@ -9,6 +9,11 @@ export const listNotebooks = /* GraphQL */ `
       lastEditedAt
       createdAt
       tags
+      pages {
+        id
+        title
+        contentKey
+      }
     }
   }
 `;
@@ -24,6 +29,11 @@ export const getNotebook = /* GraphQL */ `
       lastEditedAt
       createdAt
       tags
+      pages {
+        id
+        title
+        contentKey
+      }
     }
   }
 `;
@@ -38,13 +48,18 @@ export const createNotebook = /* GraphQL */ `
       createdAt
       lastEditedAt
       tags
+      pages {
+        id
+        title
+        contentKey
+      }
     }
   }
 `;
 
 export const updateNotebook = /* GraphQL */ `
-  mutation UpdateNotebook($id: ID!, $title: String, $snippet: String, $isFavorite: Boolean, $contentKey: String, $tags: [String]) {
-    updateNotebook(id: $id, title: $title, snippet: $snippet, isFavorite: $isFavorite, contentKey: $contentKey, tags: $tags) {
+  mutation UpdateNotebook($id: ID!, $title: String, $snippet: String, $isFavorite: Boolean, $contentKey: String, $tags: [String], $pages: [PageInput]) {
+    updateNotebook(id: $id, title: $title, snippet: $snippet, isFavorite: $isFavorite, contentKey: $contentKey, tags: $tags, pages: $pages) {
       id
       title
       snippet
@@ -52,6 +67,11 @@ export const updateNotebook = /* GraphQL */ `
       contentKey
       lastEditedAt
       tags
+      pages {
+        id
+        title
+        contentKey
+      }
     }
   }
 `;
@@ -63,14 +83,14 @@ export const deleteNotebook = /* GraphQL */ `
 `;
 
 export const getUploadUrl = /* GraphQL */ `
-  query GetUploadUrl($id: ID!) {
-    getUploadUrl(id: $id)
+  query GetUploadUrl($id: ID!, $pageId: String) {
+    getUploadUrl(id: $id, pageId: $pageId)
   }
 `;
 
 export const getDownloadUrl = /* GraphQL */ `
-  query GetDownloadUrl($id: ID!) {
-    getDownloadUrl(id: $id)
+  query GetDownloadUrl($id: ID!, $pageId: String) {
+    getDownloadUrl(id: $id, pageId: $pageId)
   }
 `;
 
