@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { get, post, patch, del } from 'aws-amplify/api';
+import { fetchAuthSession } from 'aws-amplify/auth';
 
 export interface Page {
     id: string;
@@ -40,6 +41,16 @@ interface NotebookStore {
     deletePage: (notebookId: string, pageId: string) => Promise<void>;
 }
 
+const getAuthHeaders = async (): Promise<Record<string, string>> => {
+    try {
+        const session = await fetchAuthSession();
+        const token = session.tokens?.idToken?.toString();
+        return token ? { Authorization: token } : {};
+    } catch (e) {
+        return {};
+    }
+};
+
 const API_NAME = 'NotebookApi';
 
 export const useNotebookStore = create<NotebookStore>((set, getStore) => ({
@@ -54,7 +65,11 @@ export const useNotebookStore = create<NotebookStore>((set, getStore) => ({
     fetchNotebooks: async () => {
         set({ loading: true });
         try {
-            const operation = get({ apiName: API_NAME, path: '/notebooks' });
+            const operation = get({
+                apiName: API_NAME,
+                path: '/notebooks',
+                options: { headers: await getAuthHeaders() }
+            });
             const { body } = await operation.response;
             const items = await body.json() as any[];
             set({ notebooks: items || [], loading: false });
@@ -69,7 +84,10 @@ export const useNotebookStore = create<NotebookStore>((set, getStore) => ({
             const operation = post({
                 apiName: API_NAME,
                 path: '/notebooks',
-                options: { body: { title } }
+                options: {
+                    body: { title },
+                    headers: await getAuthHeaders()
+                }
             });
             const { body } = await operation.response;
             const newNotebook = await body.json() as any;
@@ -95,7 +113,10 @@ export const useNotebookStore = create<NotebookStore>((set, getStore) => ({
             await patch({
                 apiName: API_NAME,
                 path: `/notebooks/${id}`,
-                options: { body: updates as any }
+                options: {
+                    body: updates as any,
+                    headers: await getAuthHeaders()
+                }
             }).response;
         } catch (error) {
             console.error("Error updating notebook:", error);
@@ -110,7 +131,8 @@ export const useNotebookStore = create<NotebookStore>((set, getStore) => ({
         try {
             await del({
                 apiName: API_NAME,
-                path: `/notebooks/${id}`
+                path: `/notebooks/${id}`,
+                options: { headers: await getAuthHeaders() }
             }).response;
         } catch (error) {
             console.error("Error deleting notebook:", error);
@@ -122,7 +144,11 @@ export const useNotebookStore = create<NotebookStore>((set, getStore) => ({
         if (existing && existing.pages && existing.pages.length > 0) return existing;
 
         try {
-            const operation = get({ apiName: API_NAME, path: `/notebooks/${id}` });
+            const operation = get({
+                apiName: API_NAME,
+                path: `/notebooks/${id}`,
+                options: { headers: await getAuthHeaders() }
+            });
             const { body } = await operation.response;
             const nb = await body.json() as any;
             if (nb) {
@@ -147,7 +173,8 @@ export const useNotebookStore = create<NotebookStore>((set, getStore) => ({
                 apiName: API_NAME,
                 path: '/notebooks/urls/upload',
                 options: {
-                    queryParams: { id, ...(pageId ? { pageId } : {}) }
+                    queryParams: { id, ...(pageId ? { pageId } : {}) },
+                    headers: await getAuthHeaders()
                 }
             });
             const { body: urlBody } = await urlOp.response;
@@ -206,7 +233,8 @@ export const useNotebookStore = create<NotebookStore>((set, getStore) => ({
                 apiName: API_NAME,
                 path: '/notebooks/urls/download',
                 options: {
-                    queryParams: { id, ...(pageId ? { pageId } : {}) }
+                    queryParams: { id, ...(pageId ? { pageId } : {}) },
+                    headers: await getAuthHeaders()
                 }
             });
             const { body: urlBody } = await urlOp.response;
@@ -290,7 +318,8 @@ export const useNotebookStore = create<NotebookStore>((set, getStore) => ({
                     queryParams: {
                         filename: file.name,
                         contentType: file.type
-                    }
+                    },
+                    headers: await getAuthHeaders()
                 }
             });
             const { body: urlBody } = await urlOp.response;
@@ -331,7 +360,10 @@ export const useNotebookStore = create<NotebookStore>((set, getStore) => ({
             await patch({
                 apiName: API_NAME,
                 path: `/notebooks/${id}`,
-                options: { body: { isFavorite: newValue } }
+                options: {
+                    body: { isFavorite: newValue },
+                    headers: await getAuthHeaders()
+                }
             }).response;
         } catch (error) {
             console.error("Error toggling favorite:", error);
