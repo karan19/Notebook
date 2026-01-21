@@ -34,6 +34,7 @@ export function Editor({ id }: EditorProps) {
     const [toc, setToc] = useState<{ id: string; text: string; level: number }[]>([]);
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [isTocOpen, setIsTocOpen] = useState(true);
 
     // Update TOC on content change
     const updateToc = useCallback(() => {
@@ -229,9 +230,9 @@ export function Editor({ id }: EditorProps) {
 
     // TOC Component
     const TableOfContents = () => (
-        <div className="w-64 flex-shrink-0 hidden xl:block pl-8 pt-8 sticky top-0 h-screen overflow-y-auto">
+        <div className="w-64 flex-shrink-0 hidden xl:block pl-8 pt-8 sticky top-0 h-screen overflow-y-auto border-l border-gray-100 ml-8 transition-all">
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">On this page</h3>
-            <div className="flex flex-col gap-2 border-l border-gray-200 pl-4">
+            <div className="flex flex-col gap-2 pl-2">
                 {toc.length === 0 && <span className="text-sm text-gray-300 italic">No headings</span>}
                 {toc.map((item) => (
                     <button
@@ -265,12 +266,12 @@ export function Editor({ id }: EditorProps) {
             <main className="flex-1 flex flex-col h-full overflow-hidden relative">
                 {/* Scrollable Editor Area */}
                 <div className="flex-1 overflow-y-auto scroll-smooth pb-32">
-                    <div className="max-w-4xl mx-auto px-4 py-8 min-h-screen flex gap-8">
+                    <div className="max-w-4xl mx-auto px-4 py-8 min-h-screen flex items-start justify-center">
 
                         {/* Editor Column */}
-                        <div className="flex-1 min-w-0">
-                            {/* Back Button */}
-                            <div className="mb-4">
+                        <div className={cn("flex-1 min-w-0 transition-all duration-300", isTocOpen ? "max-w-3xl" : "max-w-4xl")}>
+                            {/* Back Button & TOC Toggle */}
+                            <div className="mb-4 flex items-center justify-between">
                                 <Link
                                     href="/"
                                     className="group inline-flex items-center gap-2 text-gray-400 hover:text-gray-900 transition-colors"
@@ -279,6 +280,18 @@ export function Editor({ id }: EditorProps) {
                                     <ChevronLeft className="w-5 h-5" />
                                     <span className="text-sm font-medium">Dashboard</span>
                                 </Link>
+
+                                {/* TOC Toggle Button */}
+                                <button
+                                    onClick={() => setIsTocOpen(!isTocOpen)}
+                                    className={cn(
+                                        "p-2 rounded-md transition-colors",
+                                        isTocOpen ? "text-gray-400 hover:text-gray-900 hover:bg-gray-100" : "text-gray-400 hover:text-gray-900 bg-gray-100/50"
+                                    )}
+                                    title={isTocOpen ? "Close Table of Contents" : "Open Table of Contents"}
+                                >
+                                    <List className="w-5 h-5" />
+                                </button>
                             </div>
 
                             {/* Paper Sheet View */}
@@ -338,7 +351,18 @@ export function Editor({ id }: EditorProps) {
                         </div>
 
                         {/* TOC Sidebar */}
-                        <TableOfContents />
+                        <AnimatePresence>
+                            {isTocOpen && (
+                                <motion.div
+                                    initial={{ opacity: 0, width: 0 }}
+                                    animate={{ opacity: 1, width: "auto" }}
+                                    exit={{ opacity: 0, width: 0 }}
+                                    transition={{ duration: 0.2 }}
+                                >
+                                    <TableOfContents />
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
 
                     </div>
                 </div>
