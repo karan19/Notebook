@@ -222,7 +222,7 @@ export const useNotebookStore = create<NotebookStore>((set, getStore) => ({
             console.log(`[Store] Loading content for notebook ${id}${pageId ? `, page ${pageId}` : ''}`);
             // Check cache first
             const notebook = getStore().notebooks.find(nb => nb.id === id);
-            const page = notebook?.pages.find(p => p.id === pageId);
+            const page = notebook?.pages?.find(p => p.id === pageId);
             if (page?.content) {
                 console.log(`[Store] Returning content from cache for page ${pageId}`);
                 return page.content;

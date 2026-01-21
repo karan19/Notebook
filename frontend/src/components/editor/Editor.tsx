@@ -120,7 +120,7 @@ export function Editor({ id }: EditorProps) {
     };
 
     const notebook = useNotebookStore(state => state.notebooks.find(n => n.id === id));
-    const activePage = notebook?.pages.find(p => p.id === activePageId);
+    const activePage = notebook?.pages?.find(p => p.id === activePageId);
 
     if (!editor) return null;
 
