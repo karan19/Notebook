@@ -150,29 +150,32 @@ export function Editor({ id }: EditorProps) {
             {/* Main Content Area */}
             <main className="flex-1 overflow-y-auto relative bg-[#f8f9fa] scroll-smooth">
                 <div className="max-w-4xl mx-auto px-4 py-16 min-h-screen">
+                    {/* Back Button - Outside Paper */}
+                    <div className="mb-4">
+                        <Link
+                            href="/"
+                            className="group inline-flex items-center gap-2 text-gray-400 hover:text-gray-900 transition-colors"
+                            title="Back to Dashboard"
+                        >
+                            <ChevronLeft className="w-5 h-5" />
+                            <span className="text-sm font-medium">Back</span>
+                        </Link>
+                    </div>
+
                     {/* Paper Sheet View */}
                     <div className="bg-white shadow-[0_0_50px_rgba(0,0,0,0.04)] border border-gray-100 rounded-sm min-h-[1100px] flex flex-col">
                         {/* Header within Paper */}
-                        <div className="px-16 pt-20 pb-10 border-b border-gray-50">
-                            <div className="flex items-center gap-4 mb-8">
-                                <Link
-                                    href="/"
-                                    className="group flex items-center justify-center w-10 h-10 -ml-2 rounded-full hover:bg-gray-100 transition-colors"
-                                    title="Back to Dashboard"
-                                >
-                                    <ChevronLeft className="w-6 h-6 text-gray-400 group-hover:text-gray-900 transition-colors" />
-                                </Link>
-                                <input
-                                    value={title}
-                                    onChange={handleTitleChange}
-                                    style={{ fontSize: "40px", height: "auto" }}
-                                    className="flex-1 font-bold tracking-tight text-gray-900 border-none outline-none focus:outline-none focus:ring-0 p-0 bg-transparent placeholder:text-gray-200 leading-tight"
-                                    placeholder="Notebook Title"
-                                />
-                            </div>
+                        <div className="px-12 pt-12 pb-6 border-b border-gray-50">
+                            <input
+                                value={title}
+                                onChange={handleTitleChange}
+                                style={{ fontSize: "36px", height: "auto" }}
+                                className="w-full font-bold tracking-tight text-gray-900 border-none outline-none focus:outline-none focus:ring-0 p-0 bg-transparent placeholder:text-gray-200 leading-tight mb-4"
+                                placeholder="Notebook Title"
+                            />
 
                             {/* Tags */}
-                            <div className="flex flex-wrap items-center gap-2 mb-4">
+                            <div className="flex flex-wrap items-center gap-2">
                                 {tags.map(tag => (
                                     <span
                                         key={tag}
@@ -193,7 +196,7 @@ export function Editor({ id }: EditorProps) {
                         </div>
 
                         {/* Editor Content */}
-                        <div className="px-12 py-12 flex-1 relative editor-paper">
+                        <div className="px-12 pt-6 pb-12 flex-1 relative editor-paper">
                             <BlockNoteView
                                 editor={editor}
                                 theme="light"
