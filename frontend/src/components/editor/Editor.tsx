@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
 
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { TableOfContents } from "./TableOfContents";
 
 interface EditorProps {
     id: string;
@@ -33,6 +34,7 @@ export function Editor({ id }: EditorProps) {
 
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [isTocOpen, setIsTocOpen] = useState(false);
 
     // Save Logic
     const saveTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -406,6 +408,14 @@ export function Editor({ id }: EditorProps) {
                     )
                 }
             </AnimatePresence >
+
+            {/* Right Side Drawer - Table of Contents */}
+            <TableOfContents
+                editor={editor}
+                isOpen={isTocOpen}
+                setIsOpen={setIsTocOpen}
+            />
+
         </div >
     );
 }
