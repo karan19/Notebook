@@ -53,12 +53,15 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             const id = crypto.randomUUID();
             const now = Date.now();
 
+            // Create first page automatically
+            const firstPageId = crypto.randomUUID();
+
             const item = {
                 id,
                 title: body.title || 'Untitled Document',
                 snippet: '',
                 isFavorite: false,
-                contentKey: `notes/${id}.html`,
+                pages: [{ id: firstPageId, order: 0, title: 'Page 1' }],
                 tags: [],
                 createdAt: now,
                 lastEditedAt: now,
@@ -101,10 +104,12 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             const body = JSON.parse(event.body || '{}');
             const now = Date.now();
 
-            let updateExpression = 'SET lastEditedAt = :now';
-            const expressionAttributeValues: any = { ':now': now };
+            let updateExpression = 'set lastEditedAt = :now';
+            const expressionAttributeValues: any = {
+                ':now': now,
+            };
 
-            if (body.title !== undefined) {
+            if (body.title) {
                 updateExpression += ', title = :title';
                 expressionAttributeValues[':title'] = body.title;
             }
@@ -119,6 +124,10 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             if (body.tags !== undefined) {
                 updateExpression += ', tags = :tags';
                 expressionAttributeValues[':tags'] = body.tags;
+            }
+            if (body.pages !== undefined) {
+                updateExpression += ', pages = :pages';
+                expressionAttributeValues[':pages'] = body.pages;
             }
 
             const result = await docClient.send(new UpdateCommand({
@@ -144,41 +153,41 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
                 Key: { id },
             }));
 
-            return {
-                statusCode: 200,
-                headers,
-                body: JSON.stringify({ success: true }),
-            };
+            return { statusCode: 204, headers, body: '' };
         }
 
         // --- S3 URL ROUTES ---
 
-        // GET /notebooks/urls/upload?id=...
+        // GET /notebooks/urls/upload?id=...&pageId=...
         if (httpMethod === 'GET' && resource === '/notebooks/urls/upload') {
             const id = queryStringParameters?.id;
-            if (!id) throw new Error('Notebook ID is required');
+            const pageId = queryStringParameters?.pageId;
+            if (!id || !pageId) throw new Error('Notebook ID and Page ID are required');
 
-            const key = `notes/${id}.html`;
+            const key = `notes/${id}/${pageId}.html`;
             const command = new PutObjectCommand({
                 Bucket: BUCKET_NAME,
                 Key: key,
                 ContentType: 'text/html',
             });
-            const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+            const url = await getSignedUrl(s3Client, command, { expiresIn: 300 });
+
             return { statusCode: 200, headers, body: JSON.stringify({ url }) };
         }
 
-        // GET /notebooks/urls/download?id=...
+        // GET /notebooks/urls/download?id=...&pageId=...
         if (httpMethod === 'GET' && resource === '/notebooks/urls/download') {
             const id = queryStringParameters?.id;
-            if (!id) throw new Error('Notebook ID is required');
+            const pageId = queryStringParameters?.pageId;
+            if (!id || !pageId) throw new Error('Notebook ID and Page ID are required');
 
-            const key = `notes/${id}.html`;
+            const key = `notes/${id}/${pageId}.html`;
             const command = new GetObjectCommand({
                 Bucket: BUCKET_NAME,
                 Key: key,
             });
-            const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+            const url = await getSignedUrl(s3Client, command, { expiresIn: 300 });
+
             return { statusCode: 200, headers, body: JSON.stringify({ url }) };
         }
 

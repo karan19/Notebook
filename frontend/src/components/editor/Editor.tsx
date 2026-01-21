@@ -1,61 +1,35 @@
+
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
-import { useNotebookStore } from "@/lib/store";
+import { useNotebookStore, Page } from "@/lib/store";
 import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, List } from "lucide-react";
+import { ChevronLeft, ChevronRight, List, Plus, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
 
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-
-interface TOCEntry {
-    id: string;
-    text: string;
-    level: number;
-}
 
 interface EditorProps {
     id: string;
 }
 
 export function Editor({ id }: EditorProps) {
-    const { getNotebook, updateNotebook, loadContent, saveContent, uploadAsset } = useNotebookStore();
+    const { getNotebook, updateNotebook, loadContent, saveContent, addPage, deletePage, uploadAsset } = useNotebookStore();
     const [title, setTitle] = useState("Untitled");
     const [tags, setTags] = useState<string[]>([]);
     const [newTag, setNewTag] = useState("");
+    const [pages, setPages] = useState<Page[]>([]);
+    const [activePageId, setActivePageId] = useState<string | null>(null);
     const [isLoaded, setIsLoaded] = useState(false);
     const [isContentLoading, setIsContentLoading] = useState(false);
-    const [isTocOpen, setIsTocOpen] = useState(true);
-    const [toc, setToc] = useState<TOCEntry[]>([]);
-    const editorRef = useRef<any>(null);
 
-    // Initialize editor
+    // Editor instance
     const editor = useCreateBlockNote({
         uploadFile: uploadAsset,
     });
-    editorRef.current = editor;
-
-    // Extract TOC from editor document
-    const updateToc = useCallback(() => {
-        if (!editor) return;
-        const entries: TOCEntry[] = [];
-        for (const block of editor.document) {
-            if (block.type === 'heading' && block.content && block.content.length > 0) {
-                const text = block.content.map((c: any) => c.text || '').join('');
-                if (text.trim()) {
-                    entries.push({
-                        id: block.id,
-                        text: text,
-                        level: block.props?.level || 1,
-                    });
-                }
-            }
-        }
-        setToc(entries);
-    }, [editor]);
 
     // Load notebook metadata
     useEffect(() => {
@@ -64,38 +38,46 @@ export function Editor({ id }: EditorProps) {
             if (nb) {
                 setTitle(nb.title);
                 setTags(nb.tags || []);
+                const sortedPages = [...(nb.pages || [])].sort((a, b) => a.order - b.order);
+                setPages(sortedPages);
+                if (sortedPages.length > 0 && !activePageId) {
+                    setActivePageId(sortedPages[0].id);
+                }
                 setIsLoaded(true);
             }
         }
         init();
-    }, [id, getNotebook]);
+    }, [id, getNotebook]); // removed activePageId from deps to avoid reset on weird updates
 
-    // Prevent saving during initial load
-    const isInitializing = useRef(true);
-    const saveTimeout = useRef<NodeJS.Timeout | null>(null);
+    // Load content for active page
+    const lastLoadedPageId = useRef<string | null>(null);
+    const isInitializing = useRef(false);
 
-    // Load content when notebook is ready
     useEffect(() => {
         async function load() {
-            if (editor && isLoaded) {
+            if (editor && activePageId && lastLoadedPageId.current !== activePageId) {
                 try {
                     isInitializing.current = true;
                     setIsContentLoading(true);
-                    console.log(`[Editor] Loading content for notebook: ${id}`);
-                    const html = await loadContent(id);
+                    console.log(`[Editor] Loading content for page: ${activePageId}`);
+
+                    // Clear editor before loading new content to avoid "flashing" old content
+                    // editor.replaceBlocks(editor.document, []); 
+
+                    const html = await loadContent(id, activePageId);
                     if (html) {
                         const blocks = await editor.tryParseHTMLToBlocks(html);
                         editor.replaceBlocks(editor.document, blocks);
                         console.log(`[Editor] Content loaded successfully`);
                     } else {
-                        // Keep empty editor for new notebooks
-                        console.log(`[Editor] New notebook initialized (empty)`);
+                        editor.replaceBlocks(editor.document, []); // Empty page
                     }
+
+                    lastLoadedPageId.current = activePageId;
                     setIsContentLoading(false);
-                    // Small delay to ensure onChange from replaceBlocks is ignored
+
                     setTimeout(() => {
                         isInitializing.current = false;
-                        updateToc();
                     }, 500);
                 } catch (e) {
                     console.error("Failed to load content", e);
@@ -105,8 +87,22 @@ export function Editor({ id }: EditorProps) {
             }
         }
         load();
-    }, [editor, id, isLoaded, loadContent, updateToc]);
+    }, [editor, id, activePageId, loadContent]);
 
+    // Save Logic
+    const saveTimeout = useRef<NodeJS.Timeout | null>(null);
+    const handleContentChange = () => {
+        if (!isInitializing.current && activePageId) {
+            if (saveTimeout.current) clearTimeout(saveTimeout.current);
+            saveTimeout.current = setTimeout(() => {
+                const html = editor.blocksToFullHTML(editor.document);
+                console.log(`[Editor] Auto-saving page ${activePageId}...`);
+                saveContent(id, html, activePageId);
+            }, 1000); // 1s debounce
+        }
+    };
+
+    // Handlers
     const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newTitle = e.target.value;
         setTitle(newTitle);
@@ -132,14 +128,49 @@ export function Editor({ id }: EditorProps) {
         updateNotebook(id, { tags: updatedTags });
     };
 
-    const scrollToHeading = (blockId: string) => {
-        const element = document.querySelector(`[data-block-id="${blockId}"]`);
-        if (element) {
-            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const handleNextPage = () => {
+        const idx = pages.findIndex(p => p.id === activePageId);
+        if (idx !== -1 && idx < pages.length - 1) {
+            setActivePageId(pages[idx + 1].id);
         }
     };
 
-    if (!editor) return null;
+    const handlePrevPage = () => {
+        const idx = pages.findIndex(p => p.id === activePageId);
+        if (idx > 0) {
+            setActivePageId(pages[idx - 1].id);
+        }
+    };
+
+    const handleAddPage = async () => {
+        try {
+            const newPageId = await addPage(id);
+            if (newPageId) {
+                const nb = await getNotebook(id);
+                if (nb) {
+                    const sorted = [...(nb.pages || [])].sort((a, b) => a.order - b.order);
+                    setPages(sorted);
+                    setActivePageId(newPageId); // Jump to new page
+                }
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    const handleDeletePage = async () => {
+        if (!activePageId || pages.length <= 1) return;
+        if (confirm("Are you sure you want to delete this page?")) {
+            await deletePage(id, activePageId);
+            const nb = await getNotebook(id);
+            if (nb) {
+                const sorted = [...(nb.pages || [])].sort((a, b) => a.order - b.order);
+                setPages(sorted);
+                setActivePageId(sorted[0].id); // Go to first page
+            }
+        }
+    };
+
 
     if (!isLoaded) {
         return (
@@ -149,12 +180,15 @@ export function Editor({ id }: EditorProps) {
         );
     }
 
+    const activePageIndex = pages.findIndex(p => p.id === activePageId);
+
     return (
-        <div className="flex w-full h-full bg-[#f8f9fa] text-gray-900 font-sans overflow-hidden">
-            {/* Main Content Area */}
-            <main className="flex-1 overflow-y-auto relative bg-[#f8f9fa] scroll-smooth">
-                <div className="max-w-4xl mx-auto px-4 py-16 min-h-screen">
-                    {/* Back Button - Outside Paper */}
+        <div className="flex w-full h-full bg-[#f8f9fa] text-gray-900 font-sans flex-col overflow-hidden">
+            {/* Main Scrollable Area */}
+            <main className="flex-1 overflow-y-auto relative bg-[#f8f9fa] scroll-smooth pb-32">
+                <div className="max-w-4xl mx-auto px-4 py-8 min-h-screen">
+
+                    {/* Back Button */}
                     <div className="mb-4">
                         <Link
                             href="/"
@@ -162,12 +196,17 @@ export function Editor({ id }: EditorProps) {
                             title="Back to Dashboard"
                         >
                             <ChevronLeft className="w-5 h-5" />
-                            <span className="text-sm font-medium">Back</span>
+                            <span className="text-sm font-medium">Dashboard</span>
                         </Link>
                     </div>
 
                     {/* Paper Sheet View */}
-                    <div className="bg-white shadow-[0_0_50px_rgba(0,0,0,0.04)] border border-gray-100 rounded-sm min-h-[1100px] flex flex-col">
+                    <div className="bg-white shadow-[0_0_50px_rgba(0,0,0,0.04)] border border-gray-100 rounded-sm min-h-[1100px] flex flex-col relative">
+                        {/* Page Number Indicator (Top Right) */}
+                        <div className="absolute top-6 right-6 text-xs font-mono text-gray-300 select-none">
+                            {activePageIndex + 1} / {pages.length}
+                        </div>
+
                         {/* Header within Paper */}
                         <div className="px-12 pt-12 pb-6 border-b border-gray-50">
                             <input
@@ -178,7 +217,6 @@ export function Editor({ id }: EditorProps) {
                                 placeholder="Notebook Title"
                             />
 
-                            {/* Tags */}
                             <div className="flex flex-wrap items-center gap-2">
                                 {tags.map(tag => (
                                     <span
@@ -209,73 +247,61 @@ export function Editor({ id }: EditorProps) {
                             <BlockNoteView
                                 editor={editor}
                                 theme="light"
-                                onChange={() => {
-                                    if (!isInitializing.current) {
-                                        if (saveTimeout.current) clearTimeout(saveTimeout.current);
-                                        saveTimeout.current = setTimeout(() => {
-                                            const html = editor.blocksToFullHTML(editor.document);
-                                            console.log(`[Editor] Auto-saving...`);
-                                            saveContent(id, html);
-                                        }, 1000); // 1s debounce
-                                        // Update TOC on content change
-                                        updateToc();
-                                    }
-                                }}
+                                onChange={handleContentChange}
                             />
                         </div>
                     </div>
                 </div>
             </main>
 
-            {/* TOC Sidebar Toggle */}
-            <button
-                onClick={() => setIsTocOpen(!isTocOpen)}
-                className={cn(
-                    "absolute right-0 top-1/2 -translate-y-1/2 z-30 p-1 bg-white border border-gray-200 rounded-l-lg shadow-sm hover:bg-gray-50 transition-all",
-                    !isTocOpen ? "translate-x-0" : "-translate-x-[280px]"
-                )}
-            >
-                {isTocOpen ? <ChevronRight className="w-4 h-4 text-gray-400" /> : <List className="w-4 h-4 text-gray-400" />}
-            </button>
+            {/* Pagination Control Bar (Bottom Sticky) */}
+            <div className="fixed bottom-0 w-full bg-white/80 backdrop-blur-md border-t border-gray-200 z-50">
+                <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
 
-            {/* Table of Contents Sidebar */}
-            <AnimatePresence mode="wait">
-                {isTocOpen && (
-                    <motion.aside
-                        initial={{ width: 0, opacity: 0 }}
-                        animate={{ width: 280, opacity: 1 }}
-                        exit={{ width: 0, opacity: 0 }}
-                        className="h-full bg-white border-l border-gray-200 flex flex-col z-20"
+                    {/* Left: Delete Page (only if > 1 page) */}
+                    {pages.length > 1 ? (
+                        <button
+                            onClick={handleDeletePage}
+                            className="text-gray-400 hover:text-red-500 transition-colors p-2 hover:bg-red-50 rounded-md"
+                            title="Delete this page"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                        </button>
+                    ) : <div className="w-8" />}
+
+                    {/* Center: Pagination */}
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={handlePrevPage}
+                            disabled={activePageIndex <= 0}
+                            className="p-2 rounded-full hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-gray-600"
+                        >
+                            <ChevronLeft className="w-5 h-5" />
+                        </button>
+
+                        <span className="text-sm font-medium text-gray-500 select-none">
+                            Page {activePageIndex + 1} of {pages.length}
+                        </span>
+
+                        <button
+                            onClick={handleNextPage}
+                            disabled={activePageIndex >= pages.length - 1}
+                            className="p-2 rounded-full hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-gray-600"
+                        >
+                            <ChevronRight className="w-5 h-5" />
+                        </button>
+                    </div>
+
+                    {/* Right: Add Page */}
+                    <button
+                        onClick={handleAddPage}
+                        className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-md text-sm font-medium hover:bg-gray-800 transition-all shadow-sm active:scale-95"
                     >
-                        <div className="p-6 flex items-center justify-between border-b border-gray-100">
-                            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Table of Contents</h2>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-                            {toc.length === 0 ? (
-                                <p className="text-xs text-gray-400 px-3 py-2">
-                                    Add headings to your document to see them here.
-                                </p>
-                            ) : (
-                                toc.map((entry) => (
-                                    <button
-                                        key={entry.id}
-                                        onClick={() => scrollToHeading(entry.id)}
-                                        className={cn(
-                                            "w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-gray-100 transition-colors truncate",
-                                            entry.level === 1 && "font-semibold text-gray-900",
-                                            entry.level === 2 && "pl-6 text-gray-700",
-                                            entry.level === 3 && "pl-9 text-gray-500 text-xs"
-                                        )}
-                                    >
-                                        {entry.text}
-                                    </button>
-                                ))
-                            )}
-                        </div>
-                    </motion.aside>
-                )}
-            </AnimatePresence>
+                        <Plus className="w-4 h-4" />
+                        <span>Add Page</span>
+                    </button>
+                </div>
+            </div>
         </div>
     );
 }
