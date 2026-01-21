@@ -1,5 +1,5 @@
 import * as cdk from 'aws-cdk-lib';
-import * as appsync from 'aws-cdk-lib/aws-appsync';
+import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
@@ -20,156 +20,73 @@ export class NotebookApiStack extends cdk.Stack {
     // Import existing User Pool
     const userPool = cognito.UserPool.fromUserPoolId(this, 'UserPool', props.userPoolId);
 
-    // AppSync API
-    const api = new appsync.GraphqlApi(this, 'NotebookApi', {
-      name: 'NotebookApi',
-      schema: appsync.SchemaFile.fromAsset(path.join(__dirname, '../graphql/schema.graphql')),
-      authorizationConfig: {
-        defaultAuthorization: {
-          authorizationType: appsync.AuthorizationType.USER_POOL,
-          userPoolConfig: {
-            userPool,
-          },
-        },
-      },
-    });
-
-    // Data Sources
-    const dbSource = api.addDynamoDbDataSource('NotebookDataSource', props.notebookTable);
-
-    const urlHandler = new lambda.NodejsFunction(this, 'UrlHandler', {
-      entry: path.join(__dirname, '../lambda/url-handler.ts'),
+    // Consolidated API Router Lambda
+    const apiRouter = new lambda.NodejsFunction(this, 'ApiRouter', {
+      entry: path.join(__dirname, '../lambda/api-router.ts'),
       environment: {
+        TABLE_NAME: props.notebookTable.tableName,
         BUCKET_NAME: props.contentBucket.bucketName,
       },
       bundling: {
         minify: true,
         sourceMap: true,
       },
+      timeout: cdk.Duration.seconds(30),
     });
-
-    const lambdaSource = api.addLambdaDataSource('UrlHandlerDataSource', urlHandler);
 
     // Permissions
-    props.contentBucket.grantReadWrite(urlHandler);
+    props.notebookTable.grantReadWriteData(apiRouter);
+    props.contentBucket.grantReadWrite(apiRouter);
 
-    // Resolvers
-    dbSource.createResolver('GetNotebook', {
-      typeName: 'Query',
-      fieldName: 'getNotebook',
-      requestMappingTemplate: appsync.MappingTemplate.dynamoDbGetItem('id', 'id'),
-      responseMappingTemplate: appsync.MappingTemplate.fromString(`
-        #if(\$util.isNull(\$ctx.result.title))
-          #set(\$ctx.result.title = "Untitled Document")
-        #end
-        \$util.toJson(\$ctx.result)
-      `),
+    // API Gateway
+    const api = new apigateway.RestApi(this, 'NotebookRestApi', {
+      restApiName: 'NotebookRestApi',
+      defaultCorsPreflightOptions: {
+        allowOrigins: apigateway.Cors.ALL_ORIGINS,
+        allowMethods: apigateway.Cors.ALL_METHODS,
+        allowHeaders: ['*'],
+      },
     });
 
-    dbSource.createResolver('ListNotebooks', {
-      typeName: 'Query',
-      fieldName: 'listNotebooks',
-      requestMappingTemplate: appsync.MappingTemplate.dynamoDbScanTable(),
-      responseMappingTemplate: appsync.MappingTemplate.fromString(`
-        #foreach(\$item in \$ctx.result.items)
-          #if(\$util.isNull(\$item.title))
-            #set(\$item.title = "Untitled Document")
-          #end
-        #end
-        \$util.toJson(\$ctx.result.items)
-      `),
+    // Cognito Authorizer
+    const authorizer = new apigateway.CognitoUserPoolsAuthorizer(this, 'NotebookAuthorizer', {
+      cognitoUserPools: [userPool],
     });
 
-    dbSource.createResolver('CreateNotebook', {
-      typeName: 'Mutation',
-      fieldName: 'createNotebook',
-      requestMappingTemplate: appsync.MappingTemplate.fromString(`
-        #set(\$id = \$util.autoId())
-        {
-          "version": "2018-05-29",
-          "operation": "PutItem",
-          "key": {
-            "id": \$util.dynamodb.toDynamoDBJson(\$id)
-          },
-          "attributeValues": {
-            "title": \$util.dynamodb.toDynamoDBJson(\$util.defaultIfNullOrEmpty(\$ctx.args.title, "Untitled Document")),
-            "isFavorite": \$util.dynamodb.toDynamoDBJson(false),
-            "contentKey": \$util.dynamodb.toDynamoDBJson("notes/\${id}.html"),
-            "tags": \$util.dynamodb.toDynamoDBJson([]),
-            "createdAt": \$util.dynamodb.toDynamoDBJson(\$util.time.nowEpochMilliSeconds()),
-            "lastEditedAt": \$util.dynamodb.toDynamoDBJson(\$util.time.nowEpochMilliSeconds())
-          }
-        }
-      `),
-      responseMappingTemplate: appsync.MappingTemplate.dynamoDbResultItem(),
-    });
+    const authProps: apigateway.MethodOptions = {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    };
 
-    dbSource.createResolver('UpdateNotebook', {
-      typeName: 'Mutation',
-      fieldName: 'updateNotebook',
-      requestMappingTemplate: appsync.MappingTemplate.fromString(`
-        #set(\$expression = "SET lastEditedAt = :lastEditedAt")
-        #set(\$expressionValues = {
-          ":lastEditedAt": { "N": "\$util.time.nowEpochMilliSeconds()" }
-        })
+    // Lambda Integration
+    const integration = new apigateway.LambdaIntegration(apiRouter);
 
-        #if(\$ctx.args.title)
-          #set(\$expression = "\${expression}, title = :title")
-          \$util.qr(\$expressionValues.put(":title", { "S": \$ctx.args.title }))
-        #end
+    // Routes
+    // /notebooks
+    const notebooks = api.root.addResource('notebooks');
+    notebooks.addMethod('GET', integration, authProps);
+    notebooks.addMethod('POST', integration, authProps);
 
-        #if(\$ctx.args.snippet)
-          #set(\$expression = "\${expression}, snippet = :snippet")
-          \$util.qr(\$expressionValues.put(":snippet", { "S": \$ctx.args.snippet }))
-        #end
+    // /notebooks/{id}
+    const notebook = notebooks.addResource('{id}');
+    notebook.addMethod('GET', integration, authProps);
+    notebook.addMethod('PATCH', integration, authProps);
+    notebook.addMethod('DELETE', integration, authProps);
 
-        #if(!\$util.isNull(\$ctx.args.isFavorite))
-          #set(\$expression = "\${expression}, isFavorite = :isFavorite")
-          \$util.qr(\$expressionValues.put(":isFavorite", { "BOOL": \$ctx.args.isFavorite }))
-        #end
+    // /notebooks/urls
+    const urls = notebooks.addResource('urls');
+    const uploadUrl = urls.addResource('upload');
+    uploadUrl.addMethod('GET', integration, authProps);
 
-        #if(\$ctx.args.contentKey)
-          #set(\$expression = "\${expression}, contentKey = :contentKey")
-          \$util.qr(\$expressionValues.put(":contentKey", { "S": \$ctx.args.contentKey }))
-        #end
+    const downloadUrl = urls.addResource('download');
+    downloadUrl.addMethod('GET', integration, authProps);
 
-        #if(\$ctx.args.tags)
-          #set(\$expression = "\${expression}, tags = :tags")
-          \$util.qr(\$expressionValues.put(":tags", \$util.dynamodb.toDynamoDBJson(\$ctx.args.tags)))
-        #end
-
-        #if(\$ctx.args.pages)
-          #set(\$expression = "\${expression}, pages = :pages")
-          \$util.qr(\$expressionValues.put(":pages", \$util.dynamodb.toDynamoDBJson(\$ctx.args.pages)))
-        #end
-
-        {
-          "version": "2018-05-29",
-          "operation": "UpdateItem",
-          "key": {
-            "id": { "S": \$util.toJson(\$ctx.args.id) }
-          },
-          "update": {
-            "expression": "\${expression}",
-            "expressionValues": \$util.toJson(\$expressionValues)
-          }
-        }
-      `),
-      responseMappingTemplate: appsync.MappingTemplate.dynamoDbResultItem(),
-    });
-
-    dbSource.createResolver('DeleteNotebook', {
-      typeName: 'Mutation',
-      fieldName: 'deleteNotebook',
-      requestMappingTemplate: appsync.MappingTemplate.dynamoDbDeleteItem('id', 'id'),
-      responseMappingTemplate: appsync.MappingTemplate.fromString('$util.toJson($ctx.result.id)'),
-    });
-
-    // Link S3 URL queries to Lambda
-    lambdaSource.createResolver('GetUploadUrl', { typeName: 'Query', fieldName: 'getUploadUrl' });
-    lambdaSource.createResolver('GetDownloadUrl', { typeName: 'Query', fieldName: 'getDownloadUrl' });
+    // /assets/upload
+    const assets = api.root.addResource('assets');
+    const assetUpload = assets.addResource('upload');
+    assetUpload.addMethod('GET', integration, authProps);
 
     // Output API Details
-    new cdk.CfnOutput(this, 'GraphQLAPIURL', { value: api.graphqlUrl });
+    new cdk.CfnOutput(this, 'RestApiUrl', { value: api.url });
   }
 }

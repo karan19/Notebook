@@ -39,14 +39,16 @@ export function Editor({ id }: EditorProps) {
                 setTitle(nb.title);
                 setTags(nb.tags || []);
 
-                // Auto-migrate old notebooks or select first page
+                // Select first page or create one if none exist
                 if (nb.pages.length === 0) {
+                    console.log("[Editor] Initializing first page for new notebook...");
                     const firstPageId = crypto.randomUUID();
                     const firstPage: Page = {
                         id: firstPageId,
                         title: "Page 1",
-                        contentKey: nb.contentKey || `notes/${id}/pages/${firstPageId}.html`
+                        contentKey: `notes/${id}/pages/${firstPageId}.html`
                     };
+
                     await updateNotebook(id, { pages: [firstPage] });
                     setActivePageId(firstPageId);
                 } else if (!activePageId) {
@@ -58,21 +60,34 @@ export function Editor({ id }: EditorProps) {
         init();
     }, [id, getNotebook, updateNotebook, activePageId]);
 
+    // Prevent saving during initial load
+    const isInitializing = useRef(true);
+    const saveTimeout = useRef<NodeJS.Timeout | null>(null);
+
     // Load content when activePageId changes
     useEffect(() => {
         async function load() {
             if (editor && activePageId && isLoaded) {
                 try {
+                    isInitializing.current = true;
+                    console.log(`[Editor] Loading content for page: ${activePageId}`);
                     const html = await loadContent(id, activePageId);
                     if (html) {
                         const blocks = await editor.tryParseHTMLToBlocks(html);
                         editor.replaceBlocks(editor.document, blocks);
+                        console.log(`[Editor] Content loaded successfully`);
                     } else {
                         // Clear editor for new pages
                         editor.replaceBlocks(editor.document, [editor.document[0]]);
+                        console.log(`[Editor] New page initialized (empty)`);
                     }
+                    // Small delay to ensure onChange from replaceBlocks is ignored
+                    setTimeout(() => {
+                        isInitializing.current = false;
+                    }, 500);
                 } catch (e) {
                     console.error("Failed to load page content", e);
+                    isInitializing.current = false;
                 }
             }
         }
@@ -241,9 +256,13 @@ export function Editor({ id }: EditorProps) {
                                 editor={editor}
                                 theme="light"
                                 onChange={() => {
-                                    if (activePageId) {
-                                        const html = editor.blocksToFullHTML(editor.document);
-                                        saveContent(id, html, activePageId);
+                                    if (!isInitializing.current && activePageId) {
+                                        if (saveTimeout.current) clearTimeout(saveTimeout.current);
+                                        saveTimeout.current = setTimeout(() => {
+                                            const html = editor.blocksToFullHTML(editor.document);
+                                            console.log(`[Editor] Auto-saving page: ${activePageId}`);
+                                            saveContent(id, html, activePageId);
+                                        }, 1000); // 1s debounce
                                     }
                                 }}
                             />
