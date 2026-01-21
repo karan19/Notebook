@@ -58,8 +58,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
                 title: body.title || 'Untitled Document',
                 snippet: '',
                 isFavorite: false,
+                contentKey: `notes/${id}.html`,
                 tags: [],
-                pages: [],
                 createdAt: now,
                 lastEditedAt: now,
             };
@@ -120,10 +120,6 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
                 updateExpression += ', tags = :tags';
                 expressionAttributeValues[':tags'] = body.tags;
             }
-            if (body.pages !== undefined) {
-                updateExpression += ', pages = :pages';
-                expressionAttributeValues[':pages'] = body.pages;
-            }
 
             const result = await docClient.send(new UpdateCommand({
                 TableName: TABLE_NAME,
@@ -157,13 +153,12 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
         // --- S3 URL ROUTES ---
 
-        // GET /notebooks/urls/upload?id=...&pageId=...
+        // GET /notebooks/urls/upload?id=...
         if (httpMethod === 'GET' && resource === '/notebooks/urls/upload') {
             const id = queryStringParameters?.id;
-            const pageId = queryStringParameters?.pageId;
-            if (!id || !pageId) throw new Error('Notebook ID and Page ID are required');
+            if (!id) throw new Error('Notebook ID is required');
 
-            const key = `notes/${id}/pages/${pageId}.html`;
+            const key = `notes/${id}.html`;
             const command = new PutObjectCommand({
                 Bucket: BUCKET_NAME,
                 Key: key,
@@ -173,13 +168,12 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             return { statusCode: 200, headers, body: JSON.stringify({ url }) };
         }
 
-        // GET /notebooks/urls/download?id=...&pageId=...
+        // GET /notebooks/urls/download?id=...
         if (httpMethod === 'GET' && resource === '/notebooks/urls/download') {
             const id = queryStringParameters?.id;
-            const pageId = queryStringParameters?.pageId;
-            if (!id || !pageId) throw new Error('Notebook ID and Page ID are required');
+            if (!id) throw new Error('Notebook ID is required');
 
-            const key = `notes/${id}/pages/${pageId}.html`;
+            const key = `notes/${id}.html`;
             const command = new GetObjectCommand({
                 Bucket: BUCKET_NAME,
                 Key: key,

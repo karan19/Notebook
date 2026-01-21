@@ -2,19 +2,13 @@ import { create } from "zustand";
 import { get, post, patch, del } from 'aws-amplify/api';
 import { fetchAuthSession } from 'aws-amplify/auth';
 
-export interface Page {
-    id: string;
-    title?: string;
-    contentKey: string;
-    content?: string; // Loaded on demand
-}
-
 export interface Notebook {
     id: string;
     title: string;
     snippet?: string;
     isFavorite?: boolean;
-    pages: Page[];
+    contentKey: string;
+    content?: string; // Cache
     tags: string[];
     lastEditedAt: number;
     createdAt: number;
@@ -28,17 +22,14 @@ interface NotebookStore {
     updateNotebook: (id: string, updates: Partial<Notebook>) => Promise<void>;
     deleteNotebook: (id: string) => Promise<void>;
     getNotebook: (id: string) => Promise<Notebook | undefined>;
-    saveContent: (id: string, html: string, pageId?: string) => Promise<void>;
-    loadContent: (id: string, pageId?: string) => Promise<string>;
+    saveContent: (id: string, html: string) => Promise<void>;
+    loadContent: (id: string) => Promise<string>;
     toggleFavorite: (id: string) => Promise<void>;
     currentFilter: 'all' | 'favorites' | 'trash';
     setFilter: (filter: 'all' | 'favorites' | 'trash') => void;
     searchQuery: string;
     setSearchQuery: (query: string) => void;
     uploadAsset: (file: File) => Promise<string>;
-    addPage: (notebookId: string, title?: string) => Promise<void>;
-    updatePage: (notebookId: string, pageId: string, title: string) => Promise<void>;
-    deletePage: (notebookId: string, pageId: string) => Promise<void>;
 }
 
 const getAuthHeaders = async (): Promise<Record<string, string>> => {
@@ -141,7 +132,7 @@ export const useNotebookStore = create<NotebookStore>((set, getStore) => ({
 
     getNotebook: async (id) => {
         const existing = getStore().notebooks.find((nb) => nb.id === id);
-        if (existing && existing.pages && existing.pages.length > 0) return existing;
+        if (existing && existing.content) return existing;
 
         try {
             const operation = get({
@@ -164,16 +155,16 @@ export const useNotebookStore = create<NotebookStore>((set, getStore) => ({
         }
     },
 
-    saveContent: async (id, html, pageId) => {
+    saveContent: async (id, html) => {
         try {
-            console.log(`[Store] Saving content for notebook ${id}${pageId ? `, page ${pageId}` : ''}`);
+            console.log(`[Store] Saving content for notebook ${id}`);
 
             // 1. Get Upload URL
             const urlOp = get({
                 apiName: API_NAME,
                 path: '/notebooks/urls/upload',
                 options: {
-                    queryParams: { id, ...(pageId ? { pageId } : {}) },
+                    queryParams: { id },
                     headers: await getAuthHeaders()
                 }
             });
@@ -204,7 +195,7 @@ export const useNotebookStore = create<NotebookStore>((set, getStore) => ({
                         ...nb,
                         snippet,
                         lastEditedAt: Date.now(),
-                        pages: nb.pages.map(p => p.id === pageId ? { ...p, content: html } : p)
+                        content: html
                     } : nb
                 ),
             }));
@@ -217,15 +208,14 @@ export const useNotebookStore = create<NotebookStore>((set, getStore) => ({
         }
     },
 
-    loadContent: async (id, pageId) => {
+    loadContent: async (id) => {
         try {
-            console.log(`[Store] Loading content for notebook ${id}${pageId ? `, page ${pageId}` : ''}`);
+            console.log(`[Store] Loading content for notebook ${id}`);
             // Check cache first
             const notebook = getStore().notebooks.find(nb => nb.id === id);
-            const page = notebook?.pages?.find(p => p.id === pageId);
-            if (page?.content) {
-                console.log(`[Store] Returning content from cache for page ${pageId}`);
-                return page.content;
+            if (notebook?.content) {
+                console.log(`[Store] Returning content from cache`);
+                return notebook.content;
             }
 
             // 1. Get Download URL
@@ -233,7 +223,7 @@ export const useNotebookStore = create<NotebookStore>((set, getStore) => ({
                 apiName: API_NAME,
                 path: '/notebooks/urls/download',
                 options: {
-                    queryParams: { id, ...(pageId ? { pageId } : {}) },
+                    queryParams: { id },
                     headers: await getAuthHeaders()
                 }
             });
@@ -259,10 +249,7 @@ export const useNotebookStore = create<NotebookStore>((set, getStore) => ({
             // 3. Cache in store
             set((state) => ({
                 notebooks: state.notebooks.map((nb) =>
-                    nb.id === id ? {
-                        ...nb,
-                        pages: nb.pages.map(p => p.id === pageId ? { ...p, content: html } : p)
-                    } : nb
+                    nb.id === id ? { ...nb, content: html } : nb
                 ),
             }));
 
@@ -271,39 +258,6 @@ export const useNotebookStore = create<NotebookStore>((set, getStore) => ({
             console.error("Error loading content from S3:", error);
             return "";
         }
-    },
-
-    addPage: async (notebookId, title = "New Page") => {
-        const notebook = getStore().notebooks.find(n => n.id === notebookId);
-        if (!notebook) return;
-
-        const pageId = crypto.randomUUID();
-        const newPage: Page = {
-            id: pageId,
-            title,
-            contentKey: `notes/${notebookId}/pages/${pageId}.html`
-        };
-
-        const updatedPages = [...notebook.pages, newPage];
-        await getStore().updateNotebook(notebookId, { pages: updatedPages });
-    },
-
-    updatePage: async (notebookId, pageId, title) => {
-        const notebook = getStore().notebooks.find(n => n.id === notebookId);
-        if (!notebook) return;
-
-        const updatedPages = notebook.pages.map(p =>
-            p.id === pageId ? { ...p, title } : p
-        );
-        await getStore().updateNotebook(notebookId, { pages: updatedPages });
-    },
-
-    deletePage: async (notebookId, pageId) => {
-        const notebook = getStore().notebooks.find(n => n.id === notebookId);
-        if (!notebook) return;
-
-        const updatedPages = notebook.pages.filter(p => p.id !== pageId);
-        await getStore().updateNotebook(notebookId, { pages: updatedPages });
     },
 
     uploadAsset: async (file: File) => {
