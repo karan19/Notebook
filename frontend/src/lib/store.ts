@@ -114,7 +114,7 @@ export const useNotebookStore = create<NotebookStore>((set, getStore) => ({
                 apiName: API_NAME,
                 path: `/notebooks/${id}`,
                 options: {
-                    body: updates,
+                    body: updates as any,
                     headers: await getAuthHeaders()
                 }
             });
