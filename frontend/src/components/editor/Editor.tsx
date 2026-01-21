@@ -6,7 +6,7 @@ import "@blocknote/mantine/style.css";
 import { useNotebookStore, Page } from "@/lib/store";
 import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, List, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, List, Plus, Trash2, X, PanelRightClose } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
 
@@ -31,28 +31,12 @@ export function Editor({ id }: EditorProps) {
         uploadFile: uploadAsset,
     });
 
-    const [toc, setToc] = useState<{ id: string; text: string; level: number }[]>([]);
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
     const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [isTocOpen, setIsTocOpen] = useState(true);
-
-    // Update TOC on content change
-    const updateToc = useCallback(() => {
-        if (!editor) return;
-        const blocks = editor.document;
-        const headings = blocks.filter(b => b.type === "heading");
-        const newToc = headings.map(h => ({
-            id: h.id,
-            text: (h.content as any[])?.[0]?.text || "Untitled",
-            level: (h.props as any).level
-        }));
-        setToc(newToc);
-    }, [editor]);
 
     // Save Logic
     const saveTimeout = useRef<NodeJS.Timeout | null>(null);
     const handleContentChange = () => {
-        updateToc();
         if (!isInitializing.current && activePageId) {
             setSaveStatus('saving');
             if (saveTimeout.current) clearTimeout(saveTimeout.current);
@@ -126,8 +110,6 @@ export function Editor({ id }: EditorProps) {
                         editor.replaceBlocks(editor.document, []); // Empty page
                     }
 
-                    updateToc(); // Initial TOC update
-
                     lastLoadedPageId.current = activePageId;
                     setIsContentLoading(false);
 
@@ -142,7 +124,7 @@ export function Editor({ id }: EditorProps) {
             }
         }
         load();
-    }, [editor, id, activePageId, loadContent, updateToc]);
+    }, [editor, id, activePageId, loadContent]);
 
     // Handlers
     const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -228,36 +210,7 @@ export function Editor({ id }: EditorProps) {
 
     const activePageIndex = pages.findIndex(p => p.id === activePageId);
 
-    // TOC Component
-    const TableOfContents = () => (
-        <div className="w-64 flex-shrink-0 hidden xl:block pl-8 pt-8 sticky top-0 h-screen overflow-y-auto border-l border-gray-100 ml-8 transition-all">
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">On this page</h3>
-            <div className="flex flex-col gap-2 pl-2">
-                {toc.length === 0 && <span className="text-sm text-gray-300 italic">No headings</span>}
-                {toc.map((item) => (
-                    <button
-                        key={item.id}
-                        onClick={() => {
-                            const block = editor.getBlock(item.id);
-                            if (block) {
-                                // Scroll to block (BlockNote functionality might vary, simple scroll for now)
-                                const el = document.querySelector(`[data-id="${item.id}"]`);
-                                el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            }
-                        }}
-                        className={cn(
-                            "text-left text-sm hover:text-gray-900 transition-colors py-1",
-                            item.level === 1 ? "font-semibold text-gray-700" : "text-gray-500",
-                            item.level === 2 && "pl-2",
-                            item.level === 3 && "pl-4"
-                        )}
-                    >
-                        {item.text}
-                    </button>
-                ))}
-            </div>
-        </div>
-    );
+
 
     return (
         <div className="flex w-full h-full bg-[#f8f9fa] text-gray-900 font-sans overflow-hidden relative">
@@ -269,9 +222,9 @@ export function Editor({ id }: EditorProps) {
                     <div className="max-w-4xl mx-auto px-4 py-8 min-h-screen flex items-start justify-center">
 
                         {/* Editor Column */}
-                        <div className={cn("flex-1 min-w-0 transition-all duration-300", isTocOpen ? "max-w-3xl" : "max-w-4xl")}>
-                            {/* Back Button & TOC Toggle */}
-                            <div className="mb-4 flex items-center justify-between">
+                        <div className="flex-1 min-w-0 max-w-4xl">
+                            {/* Back Button */}
+                            <div className="mb-4">
                                 <Link
                                     href="/"
                                     className="group inline-flex items-center gap-2 text-gray-400 hover:text-gray-900 transition-colors"
@@ -280,18 +233,6 @@ export function Editor({ id }: EditorProps) {
                                     <ChevronLeft className="w-5 h-5" />
                                     <span className="text-sm font-medium">Dashboard</span>
                                 </Link>
-
-                                {/* TOC Toggle Button */}
-                                <button
-                                    onClick={() => setIsTocOpen(!isTocOpen)}
-                                    className={cn(
-                                        "p-2 rounded-md transition-colors",
-                                        isTocOpen ? "text-gray-400 hover:text-gray-900 hover:bg-gray-100" : "text-gray-400 hover:text-gray-900 bg-gray-100/50"
-                                    )}
-                                    title={isTocOpen ? "Close Table of Contents" : "Open Table of Contents"}
-                                >
-                                    <List className="w-5 h-5" />
-                                </button>
                             </div>
 
                             {/* Paper Sheet View */}
@@ -350,19 +291,7 @@ export function Editor({ id }: EditorProps) {
                             </div>
                         </div>
 
-                        {/* TOC Sidebar */}
-                        <AnimatePresence>
-                            {isTocOpen && (
-                                <motion.div
-                                    initial={{ opacity: 0, width: 0 }}
-                                    animate={{ opacity: 1, width: "auto" }}
-                                    exit={{ opacity: 0, width: 0 }}
-                                    transition={{ duration: 0.2 }}
-                                >
-                                    <TableOfContents />
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+
 
                     </div>
                 </div>
@@ -447,47 +376,49 @@ export function Editor({ id }: EditorProps) {
                         </button>
                     </div>
                 </div>
-            </main>
+            </main >
 
             {/* Delete Confirmation Modal */}
             <AnimatePresence>
-                {showDeleteModal && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center backdrop-blur-sm"
-                        onClick={() => setShowDeleteModal(false)}
-                    >
+                {
+                    showDeleteModal && (
                         <motion.div
-                            initial={{ scale: 0.95, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.95, opacity: 0 }}
-                            onClick={(e) => e.stopPropagation()}
-                            className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-4 border border-gray-100"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center backdrop-blur-sm"
+                            onClick={() => setShowDeleteModal(false)}
                         >
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Page?</h3>
-                            <p className="text-sm text-gray-500 mb-6">
-                                This will permanently delete this page and all its content. This action cannot be undone.
-                            </p>
-                            <div className="flex justify-end gap-3">
-                                <button
-                                    onClick={() => setShowDeleteModal(false)}
-                                    className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={confirmDeletePage}
-                                    className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors shadow-sm"
-                                >
-                                    Delete Page
-                                </button>
-                            </div>
+                            <motion.div
+                                initial={{ scale: 0.95, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                exit={{ scale: 0.95, opacity: 0 }}
+                                onClick={(e) => e.stopPropagation()}
+                                className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-4 border border-gray-100"
+                            >
+                                <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Page?</h3>
+                                <p className="text-sm text-gray-500 mb-6">
+                                    This will permanently delete this page and all its content. This action cannot be undone.
+                                </p>
+                                <div className="flex justify-end gap-3">
+                                    <button
+                                        onClick={() => setShowDeleteModal(false)}
+                                        className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={confirmDeletePage}
+                                        className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors shadow-sm"
+                                    >
+                                        Delete Page
+                                    </button>
+                                </div>
+                            </motion.div>
                         </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </div>
+                    )
+                }
+            </AnimatePresence >
+        </div >
     );
 }
