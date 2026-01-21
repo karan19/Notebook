@@ -27,6 +27,7 @@ export function Editor({ id }: EditorProps) {
     const [tags, setTags] = useState<string[]>([]);
     const [newTag, setNewTag] = useState("");
     const [isLoaded, setIsLoaded] = useState(false);
+    const [isContentLoading, setIsContentLoading] = useState(false);
     const [isTocOpen, setIsTocOpen] = useState(true);
     const [toc, setToc] = useState<TOCEntry[]>([]);
     const editorRef = useRef<any>(null);
@@ -79,6 +80,7 @@ export function Editor({ id }: EditorProps) {
             if (editor && isLoaded) {
                 try {
                     isInitializing.current = true;
+                    setIsContentLoading(true);
                     console.log(`[Editor] Loading content for notebook: ${id}`);
                     const html = await loadContent(id);
                     if (html) {
@@ -89,6 +91,7 @@ export function Editor({ id }: EditorProps) {
                         // Keep empty editor for new notebooks
                         console.log(`[Editor] New notebook initialized (empty)`);
                     }
+                    setIsContentLoading(false);
                     // Small delay to ensure onChange from replaceBlocks is ignored
                     setTimeout(() => {
                         isInitializing.current = false;
@@ -96,6 +99,7 @@ export function Editor({ id }: EditorProps) {
                     }, 500);
                 } catch (e) {
                     console.error("Failed to load content", e);
+                    setIsContentLoading(false);
                     isInitializing.current = false;
                 }
             }
@@ -197,6 +201,11 @@ export function Editor({ id }: EditorProps) {
 
                         {/* Editor Content */}
                         <div className="px-12 pt-6 pb-12 flex-1 relative editor-paper">
+                            {isContentLoading && (
+                                <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
+                                    <LoadingSpinner size={24} className="text-gray-400" />
+                                </div>
+                            )}
                             <BlockNoteView
                                 editor={editor}
                                 theme="light"
