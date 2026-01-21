@@ -151,7 +151,7 @@ export const useNotebookStore = create<NotebookStore>((set, getStore) => ({
                 options: { headers: await getAuthHeaders() }
             });
             const { body } = await operation.response;
-            const notebook = await body.json() as Notebook;
+            const notebook = await body.json() as unknown as Notebook;
 
             set((state) => ({
                 notebooks: [
@@ -180,7 +180,7 @@ export const useNotebookStore = create<NotebookStore>((set, getStore) => ({
                 }
             });
             const { body } = await urlOp.response;
-            const { url } = await body.json() as { url: string };
+            const { url } = await body.json() as unknown as { url: string };
 
             // 2. Upload to S3
             await fetch(url, {
@@ -232,7 +232,7 @@ export const useNotebookStore = create<NotebookStore>((set, getStore) => ({
                 }
             });
             const { body } = await urlOp.response;
-            const { url } = await body.json() as { url: string };
+            const { url } = await body.json() as unknown as { url: string };
 
             // 2. Fetch from S3
             const res = await fetch(url);
