@@ -270,7 +270,7 @@ export function Editor({ id }: EditorProps) {
                         {/* Editor Column */}
                         <div className="flex-1 min-w-0">
                             {/* Back Button */}
-                            <div className="mb-4 flex items-center justify-between">
+                            <div className="mb-4">
                                 <Link
                                     href="/"
                                     className="group inline-flex items-center gap-2 text-gray-400 hover:text-gray-900 transition-colors"
@@ -279,25 +279,6 @@ export function Editor({ id }: EditorProps) {
                                     <ChevronLeft className="w-5 h-5" />
                                     <span className="text-sm font-medium">Dashboard</span>
                                 </Link>
-
-                                {/* Save Status Indicator */}
-                                <div className="flex items-center gap-2 text-xs font-medium">
-                                    {saveStatus === 'saving' && (
-                                        <div className="flex items-center gap-2 text-gray-400">
-                                            <LoadingSpinner size={12} />
-                                            <span>Saving...</span>
-                                        </div>
-                                    )}
-                                    {saveStatus === 'saved' && (
-                                        <span className="text-green-500">All changes saved</span>
-                                    )}
-                                    {saveStatus === 'error' && (
-                                        <div className="flex items-center gap-2 text-red-500">
-                                            <span>Save failed</span>
-                                            <button onClick={handleRetrySave} className="underline hover:no-underline">Retry</button>
-                                        </div>
-                                    )}
-                                </div>
                             </div>
 
                             {/* Paper Sheet View */}
@@ -359,6 +340,39 @@ export function Editor({ id }: EditorProps) {
                         {/* TOC Sidebar */}
                         <TableOfContents />
 
+                    </div>
+                </div>
+
+                {/* Fixed Top-Right Save Status */}
+                <div className="fixed top-6 right-8 z-[60] pointer-events-none">
+                    <div className="bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm border border-gray-100 flex items-center gap-2 text-xs font-medium transition-all pointer-events-auto">
+                        {saveStatus === 'saving' && (
+                            <>
+                                <LoadingSpinner size={12} className="text-gray-400" />
+                                <span className="text-gray-500">Saving...</span>
+                            </>
+                        )}
+                        {saveStatus === 'saved' && (
+                            <>
+                                <div className="w-2 h-2 rounded-full bg-green-500" />
+                                <span className="text-gray-600">Saved</span>
+                            </>
+                        )}
+                        {saveStatus === 'error' && (
+                            <>
+                                <div className="w-2 h-2 rounded-full bg-red-500" />
+                                <span className="text-red-600">Save failed</span>
+                                <button
+                                    onClick={handleRetrySave}
+                                    className="ml-1 text-gray-400 hover:text-gray-800 underline decoration-gray-300 hover:decoration-gray-800 transition-all"
+                                >
+                                    Retry
+                                </button>
+                            </>
+                        )}
+                        {saveStatus === 'idle' && (
+                            <span className="text-gray-300">Ready</span>
+                        )}
                     </div>
                 </div>
 
