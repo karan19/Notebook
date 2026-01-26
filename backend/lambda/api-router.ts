@@ -3,6 +3,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import {
     DynamoDBDocumentClient,
     ScanCommand,
+    QueryCommand,
     GetCommand,
     PutCommand,
     UpdateCommand,
@@ -25,6 +26,18 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const { httpMethod, path, pathParameters, queryStringParameters } = event;
     const resource = event.resource; // e.g. /notebooks/{id}
 
+    // Auth extraction
+    const claims = event.requestContext?.authorizer?.claims;
+    const userId = claims?.sub;
+
+    if (!userId) {
+        return {
+            statusCode: 401,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            body: JSON.stringify({ message: 'Unauthorized: No user identity found' }),
+        };
+    }
+
     const headers = {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
@@ -37,8 +50,14 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
         // GET /notebooks
         if (httpMethod === 'GET' && resource === '/notebooks') {
-            const result = await docClient.send(new ScanCommand({
+            const result = await docClient.send(new QueryCommand({
                 TableName: TABLE_NAME,
+                IndexName: 'byUser',
+                KeyConditionExpression: 'userId = :userId',
+                ExpressionAttributeValues: {
+                    ':userId': userId,
+                },
+                ScanIndexForward: false, // Sort by lastEditedAt desc
             }));
             return {
                 statusCode: 200,
@@ -52,12 +71,11 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             const body = JSON.parse(event.body || '{}');
             const id = crypto.randomUUID();
             const now = Date.now();
-
-            // Create first page automatically
             const firstPageId = crypto.randomUUID();
 
             const item = {
                 id,
+                userId, // OWNERSHIP
                 title: body.title || 'Untitled Document',
                 snippet: '',
                 isFavorite: false,
@@ -91,6 +109,11 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
                 return { statusCode: 404, headers, body: JSON.stringify({ message: 'Not found' }) };
             }
 
+            // Security Check
+            if (result.Item.userId !== userId) {
+                return { statusCode: 403, headers, body: JSON.stringify({ message: 'Forbidden' }) };
+            }
+
             return {
                 statusCode: 200,
                 headers,
@@ -107,6 +130,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             let updateExpression = 'set lastEditedAt = :now';
             const expressionAttributeValues: any = {
                 ':now': now,
+                ':userId': userId, // For Condition
             };
 
             if (body.title) {
@@ -130,30 +154,48 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
                 expressionAttributeValues[':pages'] = body.pages;
             }
 
-            const result = await docClient.send(new UpdateCommand({
-                TableName: TABLE_NAME,
-                Key: { id },
-                UpdateExpression: updateExpression,
-                ExpressionAttributeValues: expressionAttributeValues,
-                ReturnValues: 'ALL_NEW',
-            }));
+            try {
+                const result = await docClient.send(new UpdateCommand({
+                    TableName: TABLE_NAME,
+                    Key: { id },
+                    UpdateExpression: updateExpression,
+                    ConditionExpression: 'userId = :userId', // Security enforce
+                    ExpressionAttributeValues: expressionAttributeValues,
+                    ReturnValues: 'ALL_NEW',
+                }));
 
-            return {
-                statusCode: 200,
-                headers,
-                body: JSON.stringify(result.Attributes),
-            };
+                return {
+                    statusCode: 200,
+                    headers,
+                    body: JSON.stringify(result.Attributes),
+                };
+            } catch (err: any) {
+                if (err.name === 'ConditionalCheckFailedException') {
+                    return { statusCode: 403, headers, body: JSON.stringify({ message: 'Forbidden or Not Found' }) };
+                }
+                throw err;
+            }
         }
 
         // DELETE /notebooks/{id}
         if (httpMethod === 'DELETE' && resource === '/notebooks/{id}') {
             const id = pathParameters?.id;
-            await docClient.send(new DeleteCommand({
-                TableName: TABLE_NAME,
-                Key: { id },
-            }));
-
-            return { statusCode: 204, headers, body: '' };
+            try {
+                await docClient.send(new DeleteCommand({
+                    TableName: TABLE_NAME,
+                    Key: { id },
+                    ConditionExpression: 'userId = :userId', // Security enforce
+                    ExpressionAttributeValues: {
+                        ':userId': userId,
+                    },
+                }));
+                return { statusCode: 204, headers, body: '' };
+            } catch (err: any) {
+                if (err.name === 'ConditionalCheckFailedException') {
+                    return { statusCode: 403, headers, body: JSON.stringify({ message: 'Forbidden or Not Found' }) };
+                }
+                throw err;
+            }
         }
 
         // --- S3 URL ROUTES ---
@@ -164,7 +206,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             const pageId = queryStringParameters?.pageId;
             if (!id || !pageId) throw new Error('Notebook ID and Page ID are required');
 
-            const key = `notes/${id}/${pageId}.html`;
+            // Enforce user namespace in Key
+            const key = `notes/${userId}/${id}/${pageId}.html`;
             const command = new PutObjectCommand({
                 Bucket: BUCKET_NAME,
                 Key: key,
@@ -181,7 +224,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             const pageId = queryStringParameters?.pageId;
             if (!id || !pageId) throw new Error('Notebook ID and Page ID are required');
 
-            const key = `notes/${id}/${pageId}.html`;
+            // Enforce user namespace in Key
+            const key = `notes/${userId}/${id}/${pageId}.html`;
             const command = new GetObjectCommand({
                 Bucket: BUCKET_NAME,
                 Key: key,
@@ -199,7 +243,9 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
             const uuid = crypto.randomUUID();
             const safeFilename = filename.replace(/[^a-zA-Z0-9.-]/g, '_');
-            const key = `assets/${uuid}-${safeFilename}`;
+
+            // Namespace assets too
+            const key = `assets/${userId}/${uuid}-${safeFilename}`;
 
             const command = new PutObjectCommand({
                 Bucket: BUCKET_NAME,

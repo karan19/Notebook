@@ -18,6 +18,12 @@ export class NotebookDataStack extends cdk.Stack {
             removalPolicy: cdk.RemovalPolicy.RETAIN,
         });
 
+        this.notebookTable.addGlobalSecondaryIndex({
+            indexName: 'byUser',
+            partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
+            sortKey: { name: 'lastEditedAt', type: dynamodb.AttributeType.NUMBER },
+        });
+
         // S3 Bucket for heavy document content
         this.contentBucket = new s3.Bucket(this, 'ContentBucket', {
             bucketName: `notebook-content-${cdk.Aws.ACCOUNT_ID}-${cdk.Aws.REGION}`,
