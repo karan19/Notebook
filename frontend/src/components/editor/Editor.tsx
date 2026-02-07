@@ -1,5 +1,5 @@
 
-import { useCreateBlockNote } from "@blocknote/react";
+import { useCreateBlockNote, SuggestionMenuController, DefaultReactSuggestionItem } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
@@ -21,7 +21,7 @@ interface EditorProps {
 }
 
 export function Editor({ id }: EditorProps) {
-    const { getNotebook, updateNotebook, loadContent, saveContent, addPage, deletePage, uploadAsset, togglePin, addToRecent } = useNotebookStore();
+    const { getNotebook, fetchNotebooks, updateNotebook, loadContent, saveContent, addPage, deletePage, uploadAsset, togglePin, addToRecent } = useNotebookStore();
     const [title, setTitle] = useState("Untitled");
     const [tags, setTags] = useState<string[]>([]);
     const [newTag, setNewTag] = useState("");
@@ -153,6 +153,7 @@ export function Editor({ id }: EditorProps) {
     // Load notebook metadata
     useEffect(() => {
         async function init() {
+            // Load current notebook first for immediate display
             const nb = await getNotebook(id);
             if (nb) {
                 setTitle(nb.title);
@@ -166,9 +167,11 @@ export function Editor({ id }: EditorProps) {
                 }
                 setIsLoaded(true);
             }
+            // Fetch all notebooks in background for cross-linking
+            fetchNotebooks();
         }
         init();
-    }, [id, getNotebook]);
+    }, [id, getNotebook, fetchNotebooks]);
 
     // Load content for active page
     const lastLoadedPageId = useRef<string | null>(null);
@@ -430,7 +433,39 @@ export function Editor({ id }: EditorProps) {
                                         editor={editor}
                                         theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
                                         onChange={handleContentChange}
-                                    />
+                                    >
+                                        <SuggestionMenuController
+                                            triggerCharacter={"["}
+                                            getItems={async (query) => {
+                                                // Only show if user has typed a second '['
+                                                if (!query.startsWith("[")) return [];
+
+                                                const searchTerm = query.substring(1).toLowerCase();
+                                                const allNotebooks = useNotebookStore.getState().notebooks;
+
+                                                return allNotebooks
+                                                    .filter(nb =>
+                                                        nb.id !== id && // Don't link' to self
+                                                        nb.title.toLowerCase().includes(searchTerm)
+                                                    )
+                                                    .slice(0, 5)
+                                                    .map(nb => ({
+                                                        title: nb.title,
+                                                        onItemClick: () => {
+                                                            editor.insertInlineContent([
+                                                                {
+                                                                    type: "text",
+                                                                    text: `[[${nb.title}]]`,
+                                                                    styles: { textColor: "blue", bold: true },
+                                                                }
+                                                            ]);
+                                                            // We could make this a real link if we had an actual link inline type
+                                                            // For now we'll use styled text as a "virtual" link
+                                                        }
+                                                    }));
+                                            }}
+                                        />
+                                    </BlockNoteView>
                                 </div>
                             </div>
                         </div>

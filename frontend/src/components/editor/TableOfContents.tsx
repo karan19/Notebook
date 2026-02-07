@@ -96,10 +96,22 @@ export function TableOfContents({ editor, isOpen, setIsOpen }: TableOfContentsPr
         const el = document.querySelector(`[data-id="${id}"]`);
         if (el) {
             el.scrollIntoView({ behavior: "smooth", block: "start" });
-            // Optionally set active manually
             setActiveId(id);
         }
     };
+
+    // Auto-scroll TOC to active item
+    useEffect(() => {
+        if (activeId && isOpen) {
+            const activeEl = document.getElementById(`toc-item-${activeId}`);
+            if (activeEl) {
+                activeEl.scrollIntoView({
+                    behavior: "smooth",
+                    block: "nearest",
+                });
+            }
+        }
+    }, [activeId, isOpen]);
 
     return (
         <motion.div
@@ -118,7 +130,7 @@ export function TableOfContents({ editor, isOpen, setIsOpen }: TableOfContentsPr
             </button>
 
             {/* Content Container - Clips content when width shrinks */}
-            <div className="w-[280px] h-full bg-white border-l border-gray-200 overflow-hidden flex flex-col">
+            <div className="w-[280px] h-full bg-white border-l border-gray-200 overflow-hidden flex flex-col shadow-[-10px_0_15px_rgba(0,0,0,0.02)]">
                 {/* Header */}
                 <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                     <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
@@ -129,25 +141,35 @@ export function TableOfContents({ editor, isOpen, setIsOpen }: TableOfContentsPr
                 {/* Content List */}
                 <div className="flex-1 overflow-y-auto p-4 scroll-smooth">
                     {headings.length === 0 ? (
-                        <p className="text-xs text-gray-300 italic text-center mt-10">
-                            Add headings to generate a table of contents.
-                        </p>
+                        <div className="flex flex-col items-center justify-center h-full text-center px-4">
+                            <List className="w-8 h-8 text-gray-200 mb-2" />
+                            <p className="text-xs text-gray-300 italic">
+                                Add headings to generate a table of contents.
+                            </p>
+                        </div>
                     ) : (
                         <ul className="space-y-1">
                             {headings.map((heading) => (
-                                <li key={heading.id}>
+                                <li key={heading.id} id={`toc-item-${heading.id}`}>
                                     <button
                                         onClick={() => handleItemClick(heading.id)}
                                         className={cn(
-                                            "text-left w-full py-1.5 pr-2 rounded-md text-sm transition-colors duration-200 block truncate",
+                                            "text-left w-full py-1.5 pr-2 rounded-md text-sm transition-all duration-200 block truncate relative group",
                                             heading.level === 1 && "pl-2 font-medium",
                                             heading.level === 2 && "pl-6 text-xs",
                                             heading.level === 3 && "pl-10 text-xs italic",
                                             activeId === heading.id
-                                                ? "bg-blue-50 text-blue-600 font-medium"
+                                                ? "bg-blue-50 text-blue-600 font-semibold"
                                                 : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
                                         )}
                                     >
+                                        {activeId === heading.id && (
+                                            <motion.div
+                                                layoutId="active-toc-indicator"
+                                                className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-r-full"
+                                                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                                            />
+                                        )}
                                         {heading.text}
                                     </button>
                                 </li>

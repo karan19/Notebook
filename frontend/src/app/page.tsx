@@ -357,8 +357,10 @@ export default function Dashboard() {
                     </div>
 
                     <div className="mt-4 flex flex-wrap gap-2">
-                      {notebook.pages && notebook.pages.length > 1 && (
-                        <span className="px-2 py-1 bg-blue-50 dark:bg-blue-900/30 text-[10px] font-bold text-blue-500 rounded-md uppercase tracking-wider">{notebook.pages.length} pages</span>
+                      {notebook.pages && (
+                        <span className="px-2 py-1 bg-blue-50 dark:bg-blue-900/30 text-[10px] font-bold text-blue-500 rounded-md uppercase tracking-wider">
+                          {notebook.pages.length} {notebook.pages.length === 1 ? 'page' : 'pages'}
+                        </span>
                       )}
                     </div>
                   </Link>
