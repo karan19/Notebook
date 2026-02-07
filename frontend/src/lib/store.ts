@@ -15,6 +15,7 @@ export interface Notebook {
     title: string;
     snippet?: string;
     isFavorite?: boolean;
+    isPinned?: boolean;
     pages: Page[];
     tags: string[];
     lastEditedAt: number;
@@ -32,6 +33,7 @@ interface NotebookStore {
     saveContent: (id: string, html: string, pageId: string) => Promise<void>;
     loadContent: (id: string, pageId: string) => Promise<string>;
     toggleFavorite: (id: string) => Promise<void>;
+    togglePin: (id: string) => Promise<void>;
     currentFilter: 'all' | 'favorites' | 'trash';
     setFilter: (filter: 'all' | 'favorites' | 'trash') => void;
     searchQuery: string;
@@ -45,6 +47,7 @@ interface NotebookStore {
     setSort: (sortBy: 'date' | 'name' | 'favorites', sortOrder: 'asc' | 'desc') => void;
     recentNotebooks: string[]; // IDs of recently opened notebooks
     addToRecent: (id: string) => void;
+    duplicateNotebook: (id: string) => Promise<string>;
 }
 
 const getAuthHeaders = async (): Promise<Record<string, string>> => {
@@ -315,6 +318,14 @@ export const useNotebookStore = create<NotebookStore>((set, getStore) => ({
         }
     },
 
+    togglePin: async (id) => {
+        const notebook = getStore().notebooks.find((n) => n.id === id);
+        if (notebook) {
+            const newVal = !notebook.isPinned;
+            await getStore().updateNotebook(id, { isPinned: newVal });
+        }
+    },
+
     uploadAsset: async (file: File) => {
         try {
             console.log(`[Store] Uploading asset: ${file.name}`);
@@ -361,6 +372,40 @@ export const useNotebookStore = create<NotebookStore>((set, getStore) => ({
         }));
 
         await getStore().updateNotebook(notebookId, { pages: updatedPages });
-    }
+    },
 
+    duplicateNotebook: async (id) => {
+        const source = await getStore().getNotebook(id);
+        if (!source) throw new Error("Source notebook not found");
+
+        const newId = await getStore().addNotebook(`${source.title} (Copy)`);
+
+        // Load target to get its default page if any
+        const target = await getStore().getNotebook(newId);
+        if (!target) throw new Error("Failed to load target notebook");
+
+        for (let i = 0; i < source.pages.length; i++) {
+            const sourcePage = source.pages[i];
+            const content = await getStore().loadContent(id, sourcePage.id);
+
+            let targetPageId: string;
+            if (i === 0 && target.pages && target.pages.length > 0) {
+                // Reuse the first page created by default
+                targetPageId = target.pages[0].id;
+            } else {
+                targetPageId = await getStore().addPage(newId);
+            }
+
+            await getStore().saveContent(newId, content, targetPageId);
+
+            // Optionally update page title if it exists
+            if (sourcePage.title) {
+                const currentPages = (getStore().notebooks.find(n => n.id === newId)?.pages || []);
+                const updatedPages = currentPages.map(p => p.id === targetPageId ? { ...p, title: sourcePage.title } : p);
+                await getStore().updateNotebook(newId, { pages: updatedPages });
+            }
+        }
+
+        return newId;
+    }
 }));

@@ -7,7 +7,7 @@ import { useNotebookStore, Page } from "@/lib/store";
 import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
-import { ChevronLeft, ChevronRight, List, Plus, Trash2, X, PanelRightClose, Cloud, Check, Loader2, AlertCircle, BookOpen, Focus, FileText, Download, Eye } from "lucide-react";
+import { ChevronLeft, ChevronRight, List, Plus, Trash2, X, PanelRightClose, Cloud, Check, Loader2, AlertCircle, BookOpen, Focus, FileText, Download, Eye, Pin, Copy } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
@@ -21,7 +21,7 @@ interface EditorProps {
 }
 
 export function Editor({ id }: EditorProps) {
-    const { getNotebook, updateNotebook, loadContent, saveContent, addPage, deletePage, uploadAsset } = useNotebookStore();
+    const { getNotebook, updateNotebook, loadContent, saveContent, addPage, deletePage, uploadAsset, togglePin, addToRecent } = useNotebookStore();
     const [title, setTitle] = useState("Untitled");
     const [tags, setTags] = useState<string[]>([]);
     const [newTag, setNewTag] = useState("");
@@ -45,6 +45,7 @@ export function Editor({ id }: EditorProps) {
     const [isReadingMode, setIsReadingMode] = useState(false);
     const [isFocusMode, setIsFocusMode] = useState(false);
     const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+    const [isPinned, setIsPinned] = useState(false);
 
     // Save Logic
     const saveTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -156,6 +157,8 @@ export function Editor({ id }: EditorProps) {
             if (nb) {
                 setTitle(nb.title);
                 setTags(nb.tags || []);
+                setIsPinned(nb.isPinned || false);
+                addToRecent(id);
                 const sortedPages = [...(nb.pages || [])].sort((a, b) => a.order - b.order);
                 setPages(sortedPages);
                 if (sortedPages.length > 0 && !activePageId) {
@@ -319,6 +322,25 @@ export function Editor({ id }: EditorProps) {
                             <div className="bg-white dark:bg-gray-900 shadow-[0_0_50px_rgba(0,0,0,0.04)] dark:shadow-[0_0_50px_rgba(0,0,0,0.3)] border border-gray-100 dark:border-gray-800 rounded-sm min-h-[1100px] flex flex-col relative transition-all">
                                 {/* Page Number & Save Status */}
                                 <div className="absolute top-6 right-6 flex items-center gap-3">
+                                    {/* Pin Button */}
+                                    <button
+                                        onClick={async () => {
+                                            const newVal = !isPinned;
+                                            setIsPinned(newVal);
+                                            await togglePin(id);
+                                            toast.success(newVal ? "Pinned to top" : "Unpinned from top");
+                                        }}
+                                        className={cn(
+                                            "p-1.5 transition-colors rounded-md",
+                                            isPinned
+                                                ? "text-blue-500 bg-blue-50 dark:bg-blue-900/30"
+                                                : "text-gray-300 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+                                        )}
+                                        title={isPinned ? "Unpin from top" : "Pin to top"}
+                                    >
+                                        <Pin className={cn("w-3.5 h-3.5", isPinned && "fill-current")} />
+                                    </button>
+
                                     {/* Export Button */}
                                     <button
                                         onClick={handleExportMarkdown}
@@ -326,6 +348,23 @@ export function Editor({ id }: EditorProps) {
                                         title="Export to Markdown"
                                     >
                                         <Download className="w-3.5 h-3.5" />
+                                    </button>
+
+                                    {/* Copy Button */}
+                                    <button
+                                        onClick={async () => {
+                                            try {
+                                                const markdown = await editor.blocksToMarkdownLossy(editor.document);
+                                                await navigator.clipboard.writeText(markdown);
+                                                toast.success("Content copied to clipboard", { icon: '📋' });
+                                            } catch (e) {
+                                                toast.error("Failed to copy content");
+                                            }
+                                        }}
+                                        className="p-1.5 text-gray-300 hover:text-gray-600 dark:hover:text-gray-200 transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
+                                        title="Copy to Clipboard"
+                                    >
+                                        <Copy className="w-3.5 h-3.5" />
                                     </button>
 
                                     {/* Save Status Icons */}
@@ -387,14 +426,6 @@ export function Editor({ id }: EditorProps) {
                                     isFocusMode && "focus-mode",
                                     isReadingMode && "reading-mode"
                                 )}>
-                                    {isContentLoading && (
-                                        <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 flex items-center justify-center z-10 backdrop-blur-sm">
-                                            <div className="flex flex-col items-center gap-2">
-                                                <LoadingSpinner size={32} className="text-gray-400 dark:text-gray-500" />
-                                                <span className="text-xs text-gray-400 dark:text-gray-500 font-medium tracking-wide">LOADING PAGE</span>
-                                            </div>
-                                        </div>
-                                    )}
                                     <BlockNoteView
                                         editor={editor}
                                         theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
@@ -403,9 +434,6 @@ export function Editor({ id }: EditorProps) {
                                 </div>
                             </div>
                         </div>
-
-
-
                     </div>
                 </div>
 
@@ -457,7 +485,7 @@ export function Editor({ id }: EditorProps) {
                                     <>
                                         <span className="text-gray-200 dark:text-gray-700">•</span>
                                         <span title={lastSavedAt.toLocaleString()} className="text-gray-300 dark:text-gray-600">
-                                            Saved {formatDistanceToNow(lastSavedAt, { addSuffix: true })}
+                                            Saved {formatDistanceToNow(lastSavedAt as Date, { addSuffix: true })}
                                         </span>
                                     </>
                                 )}

@@ -4,7 +4,7 @@ import { Sidebar } from "@/components/dashboard/Sidebar";
 import { useNotebookStore } from "@/lib/store";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
-import { FileText, MoreVertical, Trash2, ExternalLink, Search, Star, UserCircle, LogOut, Command, ArrowUpDown, ChevronDown, SortAsc, SortDesc } from "lucide-react";
+import { FileText, MoreVertical, Trash2, ExternalLink, Search, Star, UserCircle, LogOut, Command, ArrowUpDown, ChevronDown, SortAsc, SortDesc, Pin, Copy } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,7 +43,7 @@ function NotebookCardSkeleton() {
 }
 
 export default function Dashboard() {
-  const { notebooks, deleteNotebook, fetchNotebooks, addNotebook, loading, searchQuery, setSearchQuery, currentFilter, toggleFavorite, sortBy, sortOrder, setSort, addToRecent } = useNotebookStore();
+  const { notebooks, deleteNotebook, fetchNotebooks, addNotebook, loading, searchQuery, setSearchQuery, currentFilter, toggleFavorite, togglePin, duplicateNotebook, sortBy, sortOrder, setSort, addToRecent } = useNotebookStore();
   const { user, signOut } = useAuthenticator();
   const router = useRouter();
   const [searchFocused, setSearchFocused] = useState(false);
@@ -105,6 +105,20 @@ export default function Dashboard() {
     toast.success(isFavorite ? "Removed from favorites" : "Added to favorites");
   };
 
+  const handleTogglePin = async (notebookId: string, isPinned: boolean) => {
+    await togglePin(notebookId);
+    toast.success(isPinned ? "Unpinned from top" : "Pinned to top");
+  };
+
+  const handleDuplicate = async (notebookId: string, title: string) => {
+    const promise = duplicateNotebook(notebookId);
+    toast.promise(promise, {
+      loading: `Duplicating "${title}"...`,
+      success: "Notebook duplicated successfully",
+      error: "Failed to duplicate notebook"
+    });
+  };
+
   const filteredNotebooks = useMemo(() => {
     let result = notebooks.filter(nb => {
       const matchesSearch = nb.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -117,6 +131,10 @@ export default function Dashboard() {
 
     // Apply sorting
     result.sort((a, b) => {
+      // Always put pinned notebooks first
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+
       let comparison = 0;
       switch (sortBy) {
         case 'date':
@@ -297,6 +315,17 @@ export default function Dashboard() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleTogglePin(notebook.id, notebook.isPinned || false); }}
+                      className={cn(
+                        "h-8 w-8 rounded-lg transition-all",
+                        notebook.isPinned ? "text-blue-500 bg-blue-50 dark:bg-blue-900/30" : "text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700"
+                      )}
+                    >
+                      <Pin className={cn("h-4 w-4", notebook.isPinned && "fill-current")} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleToggleFavorite(notebook.id, notebook.isFavorite || false); }}
                       className={cn(
                         "h-8 w-8 rounded-lg transition-all",
@@ -307,7 +336,11 @@ export default function Dashboard() {
                     </Button>
                   </div>
 
-                  <Link href={`/notebooks/${notebook.id}`} className="flex-1 flex flex-col gap-4">
+                  <Link
+                    href={`/notebooks/${notebook.id}`}
+                    onClick={() => addToRecent(notebook.id)}
+                    className="flex-1 flex flex-col gap-4"
+                  >
                     <div className="flex items-start justify-between">
                       <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-xl group-hover:bg-black dark:group-hover:bg-white group-hover:text-white dark:group-hover:text-black transition-all duration-300">
                         <FileText className="h-6 w-6" />
@@ -324,7 +357,6 @@ export default function Dashboard() {
                     </div>
 
                     <div className="mt-4 flex flex-wrap gap-2">
-                      <span className="px-2 py-1 bg-gray-50 dark:bg-gray-700 text-[10px] font-bold text-gray-500 dark:text-gray-400 rounded-md uppercase tracking-wider group-hover:bg-gray-100 dark:group-hover:bg-gray-600 transition-colors">Notebook</span>
                       {notebook.pages && notebook.pages.length > 1 && (
                         <span className="px-2 py-1 bg-blue-50 dark:bg-blue-900/30 text-[10px] font-bold text-blue-500 rounded-md uppercase tracking-wider">{notebook.pages.length} pages</span>
                       )}
@@ -344,6 +376,22 @@ export default function Dashboard() {
                             <ExternalLink className="h-4 w-4" /> Open
                           </DropdownMenuItem>
                         </Link>
+                        <DropdownMenuItem
+                          className="gap-3 py-2.5 rounded-lg cursor-pointer font-medium dark:text-gray-200 dark:hover:bg-gray-700"
+                          onClick={() => handleTogglePin(notebook.id, notebook.isPinned || false)}
+                        >
+                          <Pin className="h-4 w-4" /> {notebook.isPinned ? 'Unpin from Top' : 'Pin to Top'}
+                        </DropdownMenuItem>
+
+                        <DropdownMenuItem
+                          className="gap-3 py-2.5 rounded-lg cursor-pointer font-medium dark:text-gray-200 dark:hover:bg-gray-700"
+                          onClick={() => handleDuplicate(notebook.id, notebook.title)}
+                        >
+                          <Copy className="h-4 w-4" /> Duplicate
+                        </DropdownMenuItem>
+
+                        <DropdownMenuSeparator className="dark:bg-gray-700" />
+
                         <DropdownMenuItem
                           className="gap-3 py-2.5 rounded-lg cursor-pointer text-destructive focus:text-destructive font-medium"
                           onClick={() => handleDelete(notebook.id, notebook.title)}
