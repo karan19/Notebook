@@ -9,6 +9,8 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight, List, Plus, Trash2, X, PanelRightClose, Cloud, Check, Loader2, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
+import { useTheme } from "next-themes";
+import { toast } from "@/components/ui/sonner";
 
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { TableOfContents } from "./TableOfContents";
@@ -35,6 +37,7 @@ export function Editor({ id }: EditorProps) {
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [isTocOpen, setIsTocOpen] = useState(false);
+    const { resolvedTheme } = useTheme();
 
     // Save Logic
     const saveTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -52,10 +55,26 @@ export function Editor({ id }: EditorProps) {
                 } catch (e) {
                     console.error("Save failed", e);
                     setSaveStatus('error');
+                    toast.error("Failed to save", { description: "Click the error icon to retry." });
                 }
             }, 1000); // 1s debounce
         }
     };
+
+    // Keyboard shortcut for manual save (⌘S)
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+                e.preventDefault();
+                if (activePageId && editor && saveStatus !== 'saving') {
+                    handleRetrySave();
+                    toast.success("Saved!");
+                }
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [activePageId, editor, saveStatus]);
 
     const handleRetrySave = async () => {
         if (activePageId && editor) {
@@ -204,8 +223,8 @@ export function Editor({ id }: EditorProps) {
 
     if (!isLoaded) {
         return (
-            <div className="flex h-full items-center justify-center">
-                <LoadingSpinner size={40} className="text-gray-300" />
+            <div className="flex h-full items-center justify-center bg-[#f8f9fa] dark:bg-gray-950">
+                <LoadingSpinner size={40} className="text-gray-300 dark:text-gray-600" />
             </div>
         );
     }
@@ -215,7 +234,7 @@ export function Editor({ id }: EditorProps) {
 
 
     return (
-        <div className="flex w-full h-full bg-[#f8f9fa] text-gray-900 font-sans overflow-hidden relative">
+        <div className="flex w-full h-full bg-[#f8f9fa] dark:bg-gray-950 text-gray-900 dark:text-gray-100 font-sans overflow-hidden relative">
 
             {/* Main Content Area */}
             <main className="flex-1 flex flex-col h-full overflow-hidden relative">
@@ -229,7 +248,7 @@ export function Editor({ id }: EditorProps) {
                             <div className="mb-4">
                                 <Link
                                     href="/"
-                                    className="group inline-flex items-center gap-2 text-gray-400 hover:text-gray-900 transition-colors"
+                                    className="group inline-flex items-center gap-2 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
                                     title="Back to Dashboard"
                                 >
                                     <ChevronLeft className="w-5 h-5" />
@@ -238,7 +257,7 @@ export function Editor({ id }: EditorProps) {
                             </div>
 
                             {/* Paper Sheet View */}
-                            <div className="bg-white shadow-[0_0_50px_rgba(0,0,0,0.04)] border border-gray-100 rounded-sm min-h-[1100px] flex flex-col relative transition-all">
+                            <div className="bg-white dark:bg-gray-900 shadow-[0_0_50px_rgba(0,0,0,0.04)] dark:shadow-[0_0_50px_rgba(0,0,0,0.3)] border border-gray-100 dark:border-gray-800 rounded-sm min-h-[1100px] flex flex-col relative transition-all">
                                 {/* Page Number & Save Status */}
                                 <div className="absolute top-6 right-6 flex items-center gap-3">
                                     {/* Save Status Icons */}
@@ -265,12 +284,12 @@ export function Editor({ id }: EditorProps) {
                                 </div>
 
                                 {/* Header within Paper - REDUCED PADDING */}
-                                <div className="px-8 pt-6 pb-2 border-b border-gray-50/50">
+                                <div className="px-8 pt-6 pb-2 border-b border-gray-50/50 dark:border-gray-800">
                                     <input
                                         value={title}
                                         onChange={handleTitleChange}
                                         style={{ fontSize: "32px", height: "auto" }}
-                                        className="w-full font-bold tracking-tight text-gray-900 border-none outline-none focus:outline-none focus:ring-0 p-0 bg-transparent placeholder:text-gray-200 leading-tight mb-2"
+                                        className="w-full font-bold tracking-tight text-gray-900 dark:text-white border-none outline-none focus:outline-none focus:ring-0 p-0 bg-transparent placeholder:text-gray-200 dark:placeholder:text-gray-600 leading-tight mb-2"
                                         placeholder="Notebook Title"
                                     />
 
@@ -279,7 +298,7 @@ export function Editor({ id }: EditorProps) {
                                             <span
                                                 key={tag}
                                                 onClick={() => handleTagRemove(tag)}
-                                                className="px-2 py-0.5 bg-gray-50 text-gray-400 text-[10px] font-bold uppercase tracking-wider rounded border border-gray-100 hover:bg-red-50 hover:text-red-500 hover:border-red-100 cursor-pointer transition-all"
+                                                className="px-2 py-0.5 bg-gray-50 dark:bg-gray-800 text-gray-400 text-[10px] font-bold uppercase tracking-wider rounded border border-gray-100 dark:border-gray-700 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-500 hover:border-red-100 dark:hover:border-red-800 cursor-pointer transition-all"
                                             >
                                                 #{tag}
                                             </span>
@@ -288,7 +307,7 @@ export function Editor({ id }: EditorProps) {
                                             value={newTag}
                                             onChange={(e) => setNewTag(e.target.value)}
                                             onKeyDown={handleTagAdd}
-                                            className="text-[10px] font-bold text-gray-300 border-none outline-none focus:outline-none focus:ring-0 p-0 bg-transparent placeholder:text-gray-200 w-24 uppercase tracking-wider"
+                                            className="text-[10px] font-bold text-gray-300 dark:text-gray-500 border-none outline-none focus:outline-none focus:ring-0 p-0 bg-transparent placeholder:text-gray-200 dark:placeholder:text-gray-600 w-24 uppercase tracking-wider"
                                             placeholder="+ Add tag"
                                         />
                                     </div>
@@ -297,16 +316,16 @@ export function Editor({ id }: EditorProps) {
                                 {/* Editor Content - REDUCED PADDING */}
                                 <div className="px-8 pt-4 pb-12 flex-1 relative editor-paper">
                                     {isContentLoading && (
-                                        <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10 backdrop-blur-sm">
+                                        <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 flex items-center justify-center z-10 backdrop-blur-sm">
                                             <div className="flex flex-col items-center gap-2">
-                                                <LoadingSpinner size={32} className="text-gray-400" />
-                                                <span className="text-xs text-gray-400 font-medium tracking-wide">LOADING PAGE</span>
+                                                <LoadingSpinner size={32} className="text-gray-400 dark:text-gray-500" />
+                                                <span className="text-xs text-gray-400 dark:text-gray-500 font-medium tracking-wide">LOADING PAGE</span>
                                             </div>
                                         </div>
                                     )}
                                     <BlockNoteView
                                         editor={editor}
-                                        theme="light"
+                                        theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
                                         onChange={handleContentChange}
                                     />
                                 </div>
@@ -319,13 +338,13 @@ export function Editor({ id }: EditorProps) {
                 </div>
 
                 {/* Pagination Control Bar (Bottom Sticky) */}
-                <div className="absolute bottom-0 w-full bg-white/80 backdrop-blur-md border-t border-gray-200 z-50">
+                <div className="absolute bottom-0 w-full bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-t border-gray-200 dark:border-gray-800 z-50">
                     <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
                         {/* Left: Delete Page (only if > 1 page) */}
                         {pages.length > 1 ? (
                             <button
                                 onClick={handleDeletePage}
-                                className="text-gray-400 hover:text-red-500 transition-colors p-2 hover:bg-red-50 rounded-md"
+                                className="text-gray-400 hover:text-red-500 transition-colors p-2 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-md"
                                 title="Delete this page"
                             >
                                 <Trash2 className="w-4 h-4" />
@@ -337,19 +356,19 @@ export function Editor({ id }: EditorProps) {
                             <button
                                 onClick={handlePrevPage}
                                 disabled={activePageIndex <= 0}
-                                className="p-2 rounded-full hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-gray-600"
+                                className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-gray-600 dark:text-gray-400"
                             >
                                 <ChevronLeft className="w-5 h-5" />
                             </button>
 
-                            <span className="text-sm font-medium text-gray-500 select-none">
+                            <span className="text-sm font-medium text-gray-500 dark:text-gray-400 select-none">
                                 Page {activePageIndex + 1} of {pages.length}
                             </span>
 
                             <button
                                 onClick={handleNextPage}
                                 disabled={activePageIndex >= pages.length - 1}
-                                className="p-2 rounded-full hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-gray-600"
+                                className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-gray-600 dark:text-gray-400"
                             >
                                 <ChevronRight className="w-5 h-5" />
                             </button>
@@ -358,7 +377,7 @@ export function Editor({ id }: EditorProps) {
                         {/* Right: Add Page */}
                         <button
                             onClick={handleAddPage}
-                            className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-md text-sm font-medium hover:bg-gray-800 transition-all shadow-sm active:scale-95"
+                            className="flex items-center gap-2 px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-md text-sm font-medium hover:bg-gray-800 dark:hover:bg-gray-100 transition-all shadow-sm active:scale-95"
                         >
                             <Plus className="w-4 h-4" />
                             <span>Add Page</span>
@@ -383,16 +402,16 @@ export function Editor({ id }: EditorProps) {
                                 animate={{ scale: 1, opacity: 1 }}
                                 exit={{ scale: 0.95, opacity: 0 }}
                                 onClick={(e) => e.stopPropagation()}
-                                className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-4 border border-gray-100"
+                                className="bg-white dark:bg-gray-900 rounded-lg shadow-xl p-6 max-w-sm w-full mx-4 border border-gray-100 dark:border-gray-800"
                             >
-                                <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Page?</h3>
-                                <p className="text-sm text-gray-500 mb-6">
+                                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Delete Page?</h3>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
                                     This will permanently delete this page and all its content. This action cannot be undone.
                                 </p>
                                 <div className="flex justify-end gap-3">
                                     <button
                                         onClick={() => setShowDeleteModal(false)}
-                                        className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                                        className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors"
                                     >
                                         Cancel
                                     </button>
