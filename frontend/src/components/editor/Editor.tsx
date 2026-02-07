@@ -1,13 +1,14 @@
 
-import { useCreateBlockNote, SuggestionMenuController, DefaultReactSuggestionItem } from "@blocknote/react";
+import { useCreateBlockNote, SuggestionMenuController, DefaultReactSuggestionItem, getDefaultReactSlashMenuItems } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 import { useNotebookStore, Page } from "@/lib/store";
 import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
-import { ChevronLeft, ChevronRight, List, Plus, Trash2, X, PanelRightClose, Cloud, Check, Loader2, AlertCircle, BookOpen, Focus, FileText, Download, Eye, Pin, Copy } from "lucide-react";
+import { ChevronLeft, ChevronRight, List, Plus, Trash2, X, PanelRightClose, Cloud, Check, Loader2, AlertCircle, BookOpen, Focus, FileText, Download, Eye, Pin, Copy, Grid3X3, MoreHorizontal, AlignJustify, File, Calendar, Link2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
@@ -21,6 +22,8 @@ interface EditorProps {
 }
 
 export function Editor({ id }: EditorProps) {
+    const router = useRouter();
+    const searchParams = useSearchParams();
     const { getNotebook, fetchNotebooks, updateNotebook, loadContent, saveContent, addPage, deletePage, uploadAsset, togglePin, addToRecent } = useNotebookStore();
     const [title, setTitle] = useState("Untitled");
     const [tags, setTags] = useState<string[]>([]);
@@ -46,6 +49,7 @@ export function Editor({ id }: EditorProps) {
     const [isFocusMode, setIsFocusMode] = useState(false);
     const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
     const [isPinned, setIsPinned] = useState(false);
+    const [paperStyle, setPaperStyle] = useState<'clean' | 'dots' | 'grid' | 'lines'>('clean');
 
     // Save Logic
     const saveTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -159,10 +163,15 @@ export function Editor({ id }: EditorProps) {
                 setTitle(nb.title);
                 setTags(nb.tags || []);
                 setIsPinned(nb.isPinned || false);
+                setPaperStyle(nb.paperStyle || 'clean');
                 addToRecent(id);
                 const sortedPages = [...(nb.pages || [])].sort((a, b) => a.order - b.order);
                 setPages(sortedPages);
-                if (sortedPages.length > 0 && !activePageId) {
+
+                const urlPageId = searchParams.get('page');
+                if (urlPageId && sortedPages.some(p => p.id === urlPageId)) {
+                    setActivePageId(urlPageId);
+                } else if (sortedPages.length > 0 && !activePageId) {
                     setActivePageId(sortedPages[0].id);
                 }
                 setIsLoaded(true);
@@ -172,6 +181,25 @@ export function Editor({ id }: EditorProps) {
         }
         init();
     }, [id, getNotebook, fetchNotebooks]);
+
+    // Sync URL with active page
+    useEffect(() => {
+        if (activePageId) {
+            const params = new URLSearchParams(searchParams.toString());
+            if (params.get('page') !== activePageId) {
+                params.set('page', activePageId);
+                router.push(`?${params.toString()}`, { scroll: false });
+            }
+        }
+    }, [activePageId, router, searchParams]);
+
+    // Handle URL navigation
+    useEffect(() => {
+        const urlPageId = searchParams.get('page');
+        if (urlPageId && urlPageId !== activePageId && pages.some(p => p.id === urlPageId)) {
+            setActivePageId(urlPageId);
+        }
+    }, [searchParams, pages, activePageId]);
 
     // Load content for active page
     const lastLoadedPageId = useRef<string | null>(null);
@@ -322,9 +350,31 @@ export function Editor({ id }: EditorProps) {
                             </div>
 
                             {/* Paper Sheet View */}
-                            <div className="bg-white dark:bg-gray-900 shadow-[0_0_50px_rgba(0,0,0,0.04)] dark:shadow-[0_0_50px_rgba(0,0,0,0.3)] border border-gray-100 dark:border-gray-800 rounded-sm min-h-[1100px] flex flex-col relative transition-all">
+                            <div className={cn(
+                                "bg-white dark:bg-gray-900 shadow-[0_0_50px_rgba(0,0,0,0.04)] dark:shadow-[0_0_50px_rgba(0,0,0,0.3)] border border-gray-100 dark:border-gray-800 rounded-sm min-h-[1100px] flex flex-col relative transition-all",
+                                `paper-${paperStyle}`
+                            )}>
                                 {/* Page Number & Save Status */}
                                 <div className="absolute top-6 right-6 flex items-center gap-3">
+                                    {/* Style Button */}
+                                    <button
+                                        onClick={() => {
+                                            const styles: ('clean' | 'dots' | 'grid' | 'lines')[] = ['clean', 'dots', 'grid', 'lines'];
+                                            const nextIndex = (styles.indexOf(paperStyle) + 1) % styles.length;
+                                            const nextStyle = styles[nextIndex];
+                                            setPaperStyle(nextStyle);
+                                            updateNotebook(id, { paperStyle: nextStyle });
+                                            toast.success(`Style: ${nextStyle.charAt(0).toUpperCase() + nextStyle.slice(1)}`);
+                                        }}
+                                        className="p-1.5 text-gray-300 hover:text-gray-600 dark:hover:text-gray-200 transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
+                                        title="Change Paper Style"
+                                    >
+                                        {paperStyle === 'clean' && <File className="w-3.5 h-3.5" />}
+                                        {paperStyle === 'dots' && <MoreHorizontal className="w-3.5 h-3.5" />}
+                                        {paperStyle === 'grid' && <Grid3X3 className="w-3.5 h-3.5" />}
+                                        {paperStyle === 'lines' && <AlignJustify className="w-3.5 h-3.5" />}
+                                    </button>
+
                                     {/* Pin Button */}
                                     <button
                                         onClick={async () => {
@@ -433,34 +483,143 @@ export function Editor({ id }: EditorProps) {
                                         editor={editor}
                                         theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
                                         onChange={handleContentChange}
+                                        slashMenu={false}
                                     >
+                                        <SuggestionMenuController
+                                            triggerCharacter={"/"}
+                                            getItems={async (query) => {
+                                                // Default items
+                                                const defaultItems = getDefaultReactSlashMenuItems(editor);
+                                                // Custom items
+                                                const customItems = [
+                                                    {
+                                                        title: "Date",
+                                                        onItemClick: () => {
+                                                            const dateStr = new Date().toLocaleDateString();
+                                                            editor.insertInlineContent([{ type: "text", text: dateStr, styles: { bold: true } }]);
+                                                            editor.insertInlineContent([{ type: "text", text: " ", styles: {} }]);
+                                                        },
+                                                        aliases: ["date", "time", "today"],
+                                                        group: "Insert",
+                                                        icon: <Calendar className="w-4 h-4" />,
+                                                        subtext: "Insert current date"
+                                                    },
+                                                    {
+                                                        title: "Link",
+                                                        onItemClick: () => {
+                                                            const url = prompt("Enter URL:");
+                                                            if (url) {
+                                                                const text = prompt("Enter Text (optional):") || url;
+                                                                editor.insertInlineContent([{ type: "link", href: url, content: text }]);
+                                                                editor.insertInlineContent([{ type: "text", text: " ", styles: {} }]);
+                                                            }
+                                                        },
+                                                        aliases: ["link", "url"],
+                                                        group: "Insert",
+                                                        icon: <Link2 className="w-4 h-4" />,
+                                                        subtext: "Insert a web link"
+                                                    }
+                                                ];
+
+                                                const filteredDefaults = defaultItems.filter(item =>
+                                                    item.title.toLowerCase().includes(query.toLowerCase()) ||
+                                                    (item.aliases && item.aliases.some(a => a.toLowerCase().includes(query.toLowerCase())))
+                                                );
+
+                                                const filteredCustom = customItems.filter(item =>
+                                                    item.title.toLowerCase().includes(query.toLowerCase()) ||
+                                                    (item.aliases && item.aliases.some(a => a.toLowerCase().includes(query.toLowerCase())))
+                                                );
+
+                                                return [...filteredCustom, ...filteredDefaults];
+                                            }}
+                                        />
                                         <SuggestionMenuController
                                             triggerCharacter={"["}
                                             getItems={async (query) => {
-                                                // Only show if user has typed a second '['
-                                                if (!query.startsWith("[")) return [];
 
-                                                const searchTerm = query.substring(1).toLowerCase();
-                                                const allNotebooks = useNotebookStore.getState().notebooks;
 
-                                                return allNotebooks
-                                                    .filter(nb =>
-                                                        nb.id !== id && // Don't link' to self
-                                                        nb.title.toLowerCase().includes(searchTerm)
-                                                    )
-                                                    .slice(0, 5)
-                                                    .map(nb => ({
-                                                        title: nb.title,
+                                                const store = useNotebookStore.getState();
+                                                let allNotebooks = store.notebooks;
+
+
+
+                                                // Retry fetch if empty (just in case)
+                                                if (allNotebooks.length <= 1) {
+
+                                                    // Return a loading placeholder so the user knows something is happening
+                                                    store.fetchNotebooks(); // Start fetch
+
+                                                    // If we await here, it might take too long for the menu to appear?
+                                                    // But we want to wait.
+                                                    await store.fetchNotebooks();
+                                                    allNotebooks = useNotebookStore.getState().notebooks;
+
+                                                }
+
+                                                const searchTerm = query.toLowerCase().replace(/^\[/, '');
+                                                const suggestions: any[] = [];
+
+                                                // Iterate notebooks and pages
+                                                allNotebooks.forEach(nb => {
+                                                    if (nb.id === id) return; // Skip current notebook itself? Maybe allow linking to other pages.
+                                                    // Let's include everything except exact self.
+
+                                                    // 1. Notebook Match
+                                                    if (nb.id !== id && nb.title.toLowerCase().includes(searchTerm)) {
+                                                        suggestions.push({
+                                                            title: `📒 ${nb.title}`,
+                                                            type: 'notebook',
+                                                            original: nb,
+                                                            notebookId: nb.id
+                                                        });
+                                                    }
+
+                                                    // 2. Page Matches
+                                                    if (nb.pages) {
+                                                        nb.pages.forEach((page, index) => {
+                                                            const pageTitle = page.title || `Page ${index + 1}`;
+                                                            const fullSearchString = `${nb.title} ${pageTitle}`.toLowerCase();
+
+                                                            if (fullSearchString.includes(searchTerm)) {
+                                                                suggestions.push({
+                                                                    title: `📄 ${nb.title} / ${pageTitle}`,
+                                                                    notebookTitle: nb.title,
+                                                                    pageTitle: pageTitle,
+                                                                    type: 'page',
+                                                                    pageId: page.id,
+                                                                    notebookId: nb.id
+                                                                });
+                                                            }
+                                                        });
+                                                    }
+                                                });
+
+                                                return suggestions
+                                                    .slice(0, 50)
+                                                    .map(item => ({
+                                                        title: item.title,
                                                         onItemClick: () => {
+                                                            const linkText = item.type === 'notebook'
+                                                                ? `[[${item.original.title}]]`
+                                                                : `[[${item.notebookTitle} / ${item.pageTitle}]]`;
+
+                                                            const href = item.type === 'notebook'
+                                                                ? `/notebooks/${item.notebookId}`
+                                                                : `/notebooks/${item.notebookId}?page=${item.pageId}`;
+
                                                             editor.insertInlineContent([
                                                                 {
+                                                                    type: "link",
+                                                                    href: href,
+                                                                    content: linkText
+                                                                },
+                                                                {
                                                                     type: "text",
-                                                                    text: `[[${nb.title}]]`,
-                                                                    styles: { textColor: "blue", bold: true },
+                                                                    text: " ",
+                                                                    styles: {}
                                                                 }
                                                             ]);
-                                                            // We could make this a real link if we had an actual link inline type
-                                                            // For now we'll use styled text as a "virtual" link
                                                         }
                                                     }));
                                             }}
@@ -600,6 +759,8 @@ export function Editor({ id }: EditorProps) {
                 editor={editor}
                 isOpen={isTocOpen}
                 setIsOpen={setIsTocOpen}
+                currentNotebookId={id}
+                currentNotebookTitle={title}
             />
 
         </div >

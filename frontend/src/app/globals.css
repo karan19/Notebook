@@ -148,6 +148,21 @@
   margin: 0 auto;
 }
 
+/* Links - Always Blue */
+.bn-editor a {
+  color: #2563eb !important;
+  /* blue-600 */
+  text-decoration: underline;
+  text-decoration-color: rgba(37, 99, 235, 0.4);
+  font-weight: 500;
+}
+
+/* Force transparent background so paper styles show through */
+.bn-editor,
+.bn-container {
+  background-color: transparent !important;
+}
+
 /* BlockNote Dark Mode Overrides */
 :root.dark .bn-container,
 .dark .bn-container {
@@ -241,4 +256,37 @@
 .dark .bn-editor ul li::marker,
 .dark .bn-editor ol li::marker {
   color: #888 !important;
+}
+
+/* Paper Styles */
+.paper-clean {
+  background-image: none !important;
+}
+
+.paper-dots {
+  background-image: radial-gradient(circle, #e5e7eb 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.dark .paper-dots {
+  background-image: radial-gradient(circle, #333 1px, transparent 1px);
+}
+
+.paper-grid {
+  background-image: linear-gradient(#e5e7eb 1px, transparent 1px), linear-gradient(90deg, #e5e7eb 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.dark .paper-grid {
+  background-image: linear-gradient(#333 1px, transparent 1px), linear-gradient(90deg, #333 1px, transparent 1px);
+}
+
+.paper-lines {
+  background-image: linear-gradient(to bottom, transparent 31px, #e5e7eb 31px);
+  background-size: 100% 32px;
+  background-attachment: local;
+}
+
+.dark .paper-lines {
+  background-image: linear-gradient(to bottom, transparent 31px, #333 31px);
 }

@@ -18,6 +18,7 @@ export interface Notebook {
     isPinned?: boolean;
     pages: Page[];
     tags: string[];
+    paperStyle?: 'clean' | 'dots' | 'grid' | 'lines';
     lastEditedAt: number;
     createdAt: number;
 }
