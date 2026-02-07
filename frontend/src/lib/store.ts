@@ -39,6 +39,12 @@ interface NotebookStore {
     uploadAsset: (file: File) => Promise<string>;
     addPage: (notebookId: string) => Promise<string>;
     deletePage: (notebookId: string, pageId: string) => Promise<void>;
+    // New features
+    sortBy: 'date' | 'name' | 'favorites';
+    sortOrder: 'asc' | 'desc';
+    setSort: (sortBy: 'date' | 'name' | 'favorites', sortOrder: 'asc' | 'desc') => void;
+    recentNotebooks: string[]; // IDs of recently opened notebooks
+    addToRecent: (id: string) => void;
 }
 
 const getAuthHeaders = async (): Promise<Record<string, string>> => {
@@ -53,14 +59,59 @@ const getAuthHeaders = async (): Promise<Record<string, string>> => {
 
 const API_NAME = 'NotebookApi';
 
+// Load preferences from localStorage
+const loadPreferences = () => {
+    if (typeof window === 'undefined') return { sortBy: 'date', sortOrder: 'desc', recentNotebooks: [] };
+    try {
+        const prefs = localStorage.getItem('notebook-preferences');
+        if (prefs) {
+            const parsed = JSON.parse(prefs);
+            return {
+                sortBy: parsed.sortBy || 'date',
+                sortOrder: parsed.sortOrder || 'desc',
+                recentNotebooks: parsed.recentNotebooks || []
+            };
+        }
+    } catch (e) {
+        console.error('Failed to load preferences', e);
+    }
+    return { sortBy: 'date', sortOrder: 'desc', recentNotebooks: [] };
+};
+
+const savedPrefs = loadPreferences();
+
 export const useNotebookStore = create<NotebookStore>((set, getStore) => ({
     notebooks: [],
     loading: false,
     currentFilter: 'all',
     searchQuery: "",
+    sortBy: savedPrefs.sortBy as 'date' | 'name' | 'favorites',
+    sortOrder: savedPrefs.sortOrder as 'asc' | 'desc',
+    recentNotebooks: savedPrefs.recentNotebooks as string[],
 
     setFilter: (filter) => set({ currentFilter: filter }),
     setSearchQuery: (query) => set({ searchQuery: query }),
+    setSort: (sortBy, sortOrder) => {
+        set({ sortBy, sortOrder });
+        // Persist to localStorage
+        if (typeof window !== 'undefined') {
+            try {
+                const current = JSON.parse(localStorage.getItem('notebook-preferences') || '{}');
+                localStorage.setItem('notebook-preferences', JSON.stringify({ ...current, sortBy, sortOrder }));
+            } catch (e) { }
+        }
+    },
+    addToRecent: (id) => set((state) => {
+        const recent = [id, ...state.recentNotebooks.filter(r => r !== id)].slice(0, 5);
+        // Persist to localStorage
+        if (typeof window !== 'undefined') {
+            try {
+                const current = JSON.parse(localStorage.getItem('notebook-preferences') || '{}');
+                localStorage.setItem('notebook-preferences', JSON.stringify({ ...current, recentNotebooks: recent }));
+            } catch (e) { }
+        }
+        return { recentNotebooks: recent };
+    }),
 
     fetchNotebooks: async () => {
         set({ loading: true });

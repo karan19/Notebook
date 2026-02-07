@@ -6,7 +6,8 @@ import "@blocknote/mantine/style.css";
 import { useNotebookStore, Page } from "@/lib/store";
 import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, List, Plus, Trash2, X, PanelRightClose, Cloud, Check, Loader2, AlertCircle } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { ChevronLeft, ChevronRight, List, Plus, Trash2, X, PanelRightClose, Cloud, Check, Loader2, AlertCircle, BookOpen, Focus, FileText, Download, Eye } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
@@ -39,6 +40,12 @@ export function Editor({ id }: EditorProps) {
     const [isTocOpen, setIsTocOpen] = useState(false);
     const { resolvedTheme } = useTheme();
 
+    // New feature states
+    const [wordCount, setWordCount] = useState({ words: 0, chars: 0, readingTime: 0 });
+    const [isReadingMode, setIsReadingMode] = useState(false);
+    const [isFocusMode, setIsFocusMode] = useState(false);
+    const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+
     // Save Logic
     const saveTimeout = useRef<NodeJS.Timeout | null>(null);
     const handleContentChange = () => {
@@ -51,6 +58,7 @@ export function Editor({ id }: EditorProps) {
                 try {
                     await saveContent(id, html, activePageId);
                     setSaveStatus('saved');
+                    setLastSavedAt(new Date());
                     setTimeout(() => setSaveStatus('idle'), 2000);
                 } catch (e) {
                     console.error("Save failed", e);
@@ -59,11 +67,28 @@ export function Editor({ id }: EditorProps) {
                 }
             }, 1000); // 1s debounce
         }
+
+        // Update word count
+        if (editor) {
+            const text = editor.document
+                .map(block => {
+                    if ('content' in block && Array.isArray(block.content)) {
+                        return (block.content as Array<{ text?: string }>).map(c => c.text || '').join('');
+                    }
+                    return '';
+                })
+                .join(' ');
+            const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+            const chars = text.length;
+            const readingTime = Math.ceil(words / 200); // ~200 wpm
+            setWordCount({ words, chars, readingTime });
+        }
     };
 
-    // Keyboard shortcut for manual save (⌘S)
+    // Keyboard shortcuts
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            // ⌘S - Manual save
             if ((e.metaKey || e.ctrlKey) && e.key === 's') {
                 e.preventDefault();
                 if (activePageId && editor && saveStatus !== 'saving') {
@@ -71,10 +96,22 @@ export function Editor({ id }: EditorProps) {
                     toast.success("Saved!");
                 }
             }
+            // ⌘+Shift+R - Reading mode
+            if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'R') {
+                e.preventDefault();
+                setIsReadingMode(prev => !prev);
+                toast(isReadingMode ? 'Reading mode off' : 'Reading mode on', { icon: '📖' });
+            }
+            // ⌘+Shift+F - Focus mode
+            if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'F') {
+                e.preventDefault();
+                setIsFocusMode(prev => !prev);
+                toast(isFocusMode ? 'Focus mode off' : 'Focus mode on', { icon: '🎯' });
+            }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [activePageId, editor, saveStatus]);
+    }, [activePageId, editor, saveStatus, isReadingMode, isFocusMode]);
 
     const handleRetrySave = async () => {
         if (activePageId && editor) {
@@ -87,6 +124,28 @@ export function Editor({ id }: EditorProps) {
             } catch (e) {
                 setSaveStatus('error');
             }
+        }
+    };
+
+    // Export to Markdown
+    const handleExportMarkdown = async () => {
+        if (!editor) return;
+
+        try {
+            const markdown = await editor.blocksToMarkdownLossy(editor.document);
+            const blob = new Blob([`# ${title}\n\n${markdown}`], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.md`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            toast.success("Exported to Markdown!", { icon: '📄' });
+        } catch (e) {
+            toast.error("Export failed");
+            console.error(e);
         }
     };
 
@@ -260,6 +319,15 @@ export function Editor({ id }: EditorProps) {
                             <div className="bg-white dark:bg-gray-900 shadow-[0_0_50px_rgba(0,0,0,0.04)] dark:shadow-[0_0_50px_rgba(0,0,0,0.3)] border border-gray-100 dark:border-gray-800 rounded-sm min-h-[1100px] flex flex-col relative transition-all">
                                 {/* Page Number & Save Status */}
                                 <div className="absolute top-6 right-6 flex items-center gap-3">
+                                    {/* Export Button */}
+                                    <button
+                                        onClick={handleExportMarkdown}
+                                        className="p-1.5 text-gray-300 hover:text-gray-600 dark:hover:text-gray-200 transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
+                                        title="Export to Markdown"
+                                    >
+                                        <Download className="w-3.5 h-3.5" />
+                                    </button>
+
                                     {/* Save Status Icons */}
                                     <div className="flex items-center text-gray-300">
                                         {saveStatus === 'saving' && (
@@ -314,7 +382,11 @@ export function Editor({ id }: EditorProps) {
                                 </div>
 
                                 {/* Editor Content - REDUCED PADDING */}
-                                <div className="px-8 pt-4 pb-12 flex-1 relative editor-paper">
+                                <div className={cn(
+                                    "px-8 pt-4 pb-12 flex-1 relative editor-paper",
+                                    isFocusMode && "focus-mode",
+                                    isReadingMode && "reading-mode"
+                                )}>
                                     {isContentLoading && (
                                         <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 flex items-center justify-center z-10 backdrop-blur-sm">
                                             <div className="flex flex-col items-center gap-2">
@@ -374,14 +446,46 @@ export function Editor({ id }: EditorProps) {
                             </button>
                         </div>
 
-                        {/* Right: Add Page */}
-                        <button
-                            onClick={handleAddPage}
-                            className="flex items-center gap-2 px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-md text-sm font-medium hover:bg-gray-800 dark:hover:bg-gray-100 transition-all shadow-sm active:scale-95"
-                        >
-                            <Plus className="w-4 h-4" />
-                            <span>Add Page</span>
-                        </button>
+                        {/* Right: Mode Toggles + Add Page */}
+                        <div className="flex items-center gap-2">
+                            {/* Word Count + Last Saved */}
+                            <div className="hidden sm:flex items-center gap-3 text-xs text-gray-400 dark:text-gray-500 mr-2 font-mono">
+                                <span title="Words">{wordCount.words} words</span>
+                                <span className="text-gray-200 dark:text-gray-700">•</span>
+                                <span title="Reading time">{wordCount.readingTime} min read</span>
+                                {lastSavedAt && (
+                                    <>
+                                        <span className="text-gray-200 dark:text-gray-700">•</span>
+                                        <span title={lastSavedAt.toLocaleString()} className="text-gray-300 dark:text-gray-600">
+                                            Saved {formatDistanceToNow(lastSavedAt, { addSuffix: true })}
+                                        </span>
+                                    </>
+                                )}
+                            </div>
+
+                            {/* Focus Mode Toggle */}
+                            <button
+                                onClick={() => setIsFocusMode(!isFocusMode)}
+                                className={cn(
+                                    "p-2 rounded-md transition-colors",
+                                    isFocusMode
+                                        ? "bg-gray-900 dark:bg-white text-white dark:text-gray-900"
+                                        : "text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+                                )}
+                                title="Focus Mode (⌘+Shift+F)"
+                            >
+                                <Eye className="w-4 h-4" />
+                            </button>
+
+                            {/* Add Page Button */}
+                            <button
+                                onClick={handleAddPage}
+                                className="flex items-center gap-2 px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-md text-sm font-medium hover:bg-gray-800 dark:hover:bg-gray-100 transition-all shadow-sm active:scale-95 ml-2"
+                            >
+                                <Plus className="w-4 h-4" />
+                                <span>Add Page</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </main >

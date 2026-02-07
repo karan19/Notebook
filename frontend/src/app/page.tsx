@@ -4,22 +4,25 @@ import { Sidebar } from "@/components/dashboard/Sidebar";
 import { useNotebookStore } from "@/lib/store";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
-import { FileText, MoreVertical, Trash2, ExternalLink, Search, Star, UserCircle, LogOut, Command } from "lucide-react";
+import { FileText, MoreVertical, Trash2, ExternalLink, Search, Star, UserCircle, LogOut, Command, ArrowUpDown, ChevronDown, SortAsc, SortDesc } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthenticator } from '@aws-amplify/ui-react';
 import { motion, AnimatePresence } from "motion/react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/sonner";
+import { QuickSwitcher } from "@/components/ui/quick-switcher";
+import { useConfetti } from "@/components/ui/confetti";
 
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 
 // Notebook Card Skeleton for loading state
@@ -40,10 +43,11 @@ function NotebookCardSkeleton() {
 }
 
 export default function Dashboard() {
-  const { notebooks, deleteNotebook, fetchNotebooks, addNotebook, loading, searchQuery, setSearchQuery, currentFilter, toggleFavorite } = useNotebookStore();
+  const { notebooks, deleteNotebook, fetchNotebooks, addNotebook, loading, searchQuery, setSearchQuery, currentFilter, toggleFavorite, sortBy, sortOrder, setSort, addToRecent } = useNotebookStore();
   const { user, signOut } = useAuthenticator();
   const router = useRouter();
   const [searchFocused, setSearchFocused] = useState(false);
+  const [isQuickSwitcherOpen, setIsQuickSwitcherOpen] = useState(false);
 
   useEffect(() => {
     fetchNotebooks();
@@ -63,15 +67,23 @@ export default function Dashboard() {
         const searchInput = document.querySelector('input[placeholder*="Search"]') as HTMLInputElement;
         searchInput?.focus();
       }
+      // ⌘+P or Ctrl+P: Quick switcher
+      if ((e.metaKey || e.ctrlKey) && e.key === 'p') {
+        e.preventDefault();
+        setIsQuickSwitcherOpen(true);
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  const { fire: fireConfetti } = useConfetti();
+
   const handleCreateFirst = async () => {
     try {
       const id = await addNotebook();
+      fireConfetti({ particleCount: 60 });
       toast.success("Notebook created!", { description: "Start writing your thoughts..." });
       router.push(`/notebooks/${id}`);
     } catch (e) {
@@ -93,14 +105,35 @@ export default function Dashboard() {
     toast.success(isFavorite ? "Removed from favorites" : "Added to favorites");
   };
 
-  const filteredNotebooks = notebooks.filter(nb => {
-    const matchesSearch = nb.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (nb.snippet && nb.snippet.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredNotebooks = useMemo(() => {
+    let result = notebooks.filter(nb => {
+      const matchesSearch = nb.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (nb.snippet && nb.snippet.toLowerCase().includes(searchQuery.toLowerCase()));
 
-    if (currentFilter === 'favorites') return matchesSearch && nb.isFavorite;
-    if (currentFilter === 'trash') return false; // Not implemented yet
-    return matchesSearch;
-  });
+      if (currentFilter === 'favorites') return matchesSearch && nb.isFavorite;
+      if (currentFilter === 'trash') return false;
+      return matchesSearch;
+    });
+
+    // Apply sorting
+    result.sort((a, b) => {
+      let comparison = 0;
+      switch (sortBy) {
+        case 'date':
+          comparison = (b.lastEditedAt || 0) - (a.lastEditedAt || 0);
+          break;
+        case 'name':
+          comparison = a.title.localeCompare(b.title);
+          break;
+        case 'favorites':
+          comparison = (b.isFavorite ? 1 : 0) - (a.isFavorite ? 1 : 0);
+          break;
+      }
+      return sortOrder === 'asc' ? -comparison : comparison;
+    });
+
+    return result;
+  }, [notebooks, searchQuery, currentFilter, sortBy, sortOrder]);
 
   return (
     <div className="flex h-screen bg-[#FDFDFD] dark:bg-gray-950">
@@ -130,6 +163,44 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center gap-4 ml-auto">
+            {/* Sort Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                  <ArrowUpDown className="h-4 w-4" />
+                  <span className="hidden sm:inline">Sort</span>
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48 rounded-xl dark:bg-gray-900 dark:border-gray-800">
+                <DropdownMenuItem
+                  onClick={() => setSort('date', sortOrder === 'desc' && sortBy === 'date' ? 'asc' : 'desc')}
+                  className={cn("gap-3 cursor-pointer dark:text-gray-200", sortBy === 'date' && "font-medium")}
+                >
+                  {sortBy === 'date' && (sortOrder === 'desc' ? <SortDesc className="h-4 w-4" /> : <SortAsc className="h-4 w-4" />)}
+                  {sortBy !== 'date' && <span className="w-4" />}
+                  Date Modified
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setSort('name', sortOrder === 'asc' && sortBy === 'name' ? 'desc' : 'asc')}
+                  className={cn("gap-3 cursor-pointer dark:text-gray-200", sortBy === 'name' && "font-medium")}
+                >
+                  {sortBy === 'name' && (sortOrder === 'asc' ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />)}
+                  {sortBy !== 'name' && <span className="w-4" />}
+                  Name
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="dark:bg-gray-800" />
+                <DropdownMenuItem
+                  onClick={() => setSort('favorites', 'desc')}
+                  className={cn("gap-3 cursor-pointer dark:text-gray-200", sortBy === 'favorites' && "font-medium")}
+                >
+                  <Star className={cn("h-4 w-4", sortBy === 'favorites' && "text-amber-400 fill-current")} />
+                  Favorites First
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* User Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 p-0 overflow-hidden hover:bg-gray-100 dark:hover:bg-gray-800 transition-all ring-offset-2 focus-visible:ring-2 focus-visible:ring-gray-200">
@@ -288,6 +359,12 @@ export default function Dashboard() {
           )}
         </div>
       </main>
+
+      {/* Quick Switcher Modal */}
+      <QuickSwitcher
+        isOpen={isQuickSwitcherOpen}
+        onClose={() => setIsQuickSwitcherOpen(false)}
+      />
     </div>
   );
 }

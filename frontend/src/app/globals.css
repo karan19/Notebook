@@ -125,3 +125,120 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Focus Mode - Dims non-focused blocks */
+.focus-mode [data-node-type="blockContainer"]:not(:focus-within) {
+  opacity: 0.3;
+  transition: opacity 0.2s ease;
+}
+
+.focus-mode [data-node-type="blockContainer"]:focus-within {
+  opacity: 1;
+}
+
+.focus-mode [data-node-type="blockContainer"]:hover {
+  opacity: 0.7;
+}
+
+/* Reading Mode - Larger text, centered */
+.reading-mode .bn-editor {
+  font-size: 1.125rem;
+  line-height: 1.8;
+  max-width: 42rem;
+  margin: 0 auto;
+}
+
+/* BlockNote Dark Mode Overrides */
+:root.dark .bn-container,
+.dark .bn-container {
+  --bn-colors-editor-text: #d4d4d4 !important;
+  --bn-colors-editor-background: transparent !important;
+  --bn-colors-menu-text: #e5e5e5 !important;
+  --bn-colors-menu-background: #1f1f1f !important;
+  --bn-colors-tooltip-text: #e5e5e5 !important;
+  --bn-colors-tooltip-background: #2a2a2a !important;
+  --bn-colors-hovered-text: #ffffff !important;
+  --bn-colors-hovered-background: #333333 !important;
+  --bn-colors-selected-text: #ffffff !important;
+  --bn-colors-selected-background: #404040 !important;
+  --bn-colors-disabled-text: #6b6b6b !important;
+  --bn-colors-disabled-background: #1a1a1a !important;
+  --bn-colors-shadow: rgba(0, 0, 0, 0.3) !important;
+  --bn-colors-border: #3a3a3a !important;
+  --bn-colors-side-menu: #8a8a8a !important;
+}
+
+/* Direct element styling for dark mode */
+.dark .bn-editor,
+.dark .bn-block-content,
+.dark .bn-inline-content,
+.dark .bn-editor p,
+.dark .bn-editor h1,
+.dark .bn-editor h2,
+.dark .bn-editor h3,
+.dark .bn-editor li,
+.dark .bn-editor td,
+.dark .bn-editor th {
+  color: #d4d4d4 !important;
+}
+
+/* Dark mode headings - slightly brighter */
+.dark .bn-editor h1,
+.dark .bn-editor h2,
+.dark .bn-editor h3 {
+  color: #e5e5e5 !important;
+}
+
+/* Dark mode bold text */
+.dark .bn-editor strong {
+  color: #f5f5f5 !important;
+}
+
+/* Dark mode code blocks */
+.dark .bn-editor pre,
+.dark .bn-editor code {
+  background-color: #1a1a1a !important;
+  color: #e5e5e5 !important;
+  border-color: #333 !important;
+}
+
+/* Dark mode links */
+.dark .bn-editor a {
+  color: #60a5fa !important;
+}
+
+/* Dark mode blockquotes */
+.dark .bn-editor blockquote {
+  border-left-color: #4a4a4a !important;
+  background-color: rgba(255, 255, 255, 0.03) !important;
+}
+
+/* Dark mode horizontal rule */
+.dark .bn-editor hr {
+  border-color: #444 !important;
+  background-color: #444 !important;
+}
+
+/* Dark mode table */
+.dark .bn-editor table {
+  border-color: #444 !important;
+}
+
+.dark .bn-editor th,
+.dark .bn-editor td {
+  border-color: #444 !important;
+}
+
+.dark .bn-editor th {
+  background-color: #252525 !important;
+}
+
+.dark .bn-editor tr:nth-child(even) td {
+  background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
+/* Dark mode list bullets */
+.dark .bn-editor ul li::marker,
+.dark .bn-editor ol li::marker {
+  color: #888 !important;
+}
