@@ -29,15 +29,23 @@ export function Editor({ id }: EditorProps) {
     const [tags, setTags] = useState<string[]>([]);
     const [newTag, setNewTag] = useState("");
     const [pages, setPages] = useState<Page[]>([]);
-    const [activePageId, setActivePageId] = useState<string | null>(null);
     const [isLoaded, setIsLoaded] = useState(false);
     const [isContentLoading, setIsContentLoading] = useState(false);
+
+    // activePageId is now derived from URL
+    const activePageId = searchParams.get('page') || (pages.length > 0 ? pages[0].id : null);
+
+    const setActivePageId = useCallback((pageId: string) => {
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('page', pageId);
+        router.push(`?${params.toString()}`, { scroll: false });
+    }, [router, searchParams]);
 
     // Editor instance
     const editor = useCreateBlockNote({
         uploadFile: uploadAsset,
     });
-
+    // ... rest of states ...
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [isTocOpen, setIsTocOpen] = useState(false);
@@ -167,13 +175,6 @@ export function Editor({ id }: EditorProps) {
                 addToRecent(id);
                 const sortedPages = [...(nb.pages || [])].sort((a, b) => a.order - b.order);
                 setPages(sortedPages);
-
-                const urlPageId = searchParams.get('page');
-                if (urlPageId && sortedPages.some(p => p.id === urlPageId)) {
-                    setActivePageId(urlPageId);
-                } else if (sortedPages.length > 0 && !activePageId) {
-                    setActivePageId(sortedPages[0].id);
-                }
                 setIsLoaded(true);
             }
             // Fetch all notebooks in background for cross-linking
@@ -181,25 +182,6 @@ export function Editor({ id }: EditorProps) {
         }
         init();
     }, [id, getNotebook, fetchNotebooks]);
-
-    // Sync URL with active page
-    useEffect(() => {
-        if (activePageId) {
-            const params = new URLSearchParams(searchParams.toString());
-            if (params.get('page') !== activePageId) {
-                params.set('page', activePageId);
-                router.push(`?${params.toString()}`, { scroll: false });
-            }
-        }
-    }, [activePageId, router, searchParams]);
-
-    // Handle URL navigation
-    useEffect(() => {
-        const urlPageId = searchParams.get('page');
-        if (urlPageId && urlPageId !== activePageId && pages.some(p => p.id === urlPageId)) {
-            setActivePageId(urlPageId);
-        }
-    }, [searchParams, pages, activePageId]);
 
     // Load content for active page
     const lastLoadedPageId = useRef<string | null>(null);
