@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
 import { toast } from "@/components/ui/sonner";
 
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { EditorSkeleton, ContentLoadingOverlay } from "@/components/ui/loading-spinner";
 import { TableOfContents } from "./TableOfContents";
 
 interface EditorProps {
@@ -297,11 +297,7 @@ export function Editor({ id }: EditorProps) {
 
 
     if (!isLoaded) {
-        return (
-            <div className="flex h-full items-center justify-center bg-[#f8f9fa] dark:bg-gray-950">
-                <LoadingSpinner size={40} className="text-gray-300 dark:text-gray-600" />
-            </div>
-        );
+        return <EditorSkeleton />;
     }
 
     const activePageIndex = pages.findIndex(p => p.id === activePageId);
@@ -336,6 +332,10 @@ export function Editor({ id }: EditorProps) {
                                 "bg-white dark:bg-gray-900 shadow-[0_0_50px_rgba(0,0,0,0.04)] dark:shadow-[0_0_50px_rgba(0,0,0,0.3)] border border-gray-100 dark:border-gray-800 rounded-sm min-h-[1100px] flex flex-col relative transition-all",
                                 `paper-${paperStyle}`
                             )}>
+                                {/* Page content loading overlay */}
+                                <AnimatePresence>
+                                    {isContentLoading && <ContentLoadingOverlay />}
+                                </AnimatePresence>
                                 {/* Page Number & Save Status */}
                                 <div className="absolute top-6 right-6 flex items-center gap-3">
                                     {/* Style Button */}

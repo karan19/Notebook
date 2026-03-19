@@ -1,15 +1,7 @@
 "use client";
 
-import { use, useState, useEffect } from "react";
+import { use } from "react";
 import { Editor } from "@/components/editor/Editor";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { UserCircle, ChevronLeft } from "lucide-react";
-import { useNotebookStore } from "@/lib/store";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-
-import { FullPageSpinner } from "@/components/ui/loading-spinner";
 
 export default function NotebookPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
