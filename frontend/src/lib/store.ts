@@ -2,21 +2,12 @@ import { create } from "zustand";
 import { get, post, patch, del } from 'aws-amplify/api';
 import { fetchAuthSession } from 'aws-amplify/auth';
 
-export interface SideNote {
-    id: string;
-    content: string;
-    y: number; // Vertical position in pixels or percentage
-    color?: string;
-    createdAt: number;
-}
-
 export interface Page {
     id: string;
     title?: string;
     contentKey: string;
     content?: string; // Loaded on demand
     order: number;
-    sideNotes?: SideNote[];
 }
 
 export interface Notebook {
