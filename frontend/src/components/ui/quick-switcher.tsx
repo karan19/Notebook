@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useRef, useMemo } from "react"
 import { motion, AnimatePresence } from "motion/react"
-import { Search, FileText, Star, Clock } from "lucide-react"
+import { Search, FileText, Star, Clock, Plus, Moon, Sun, Keyboard, Command as CommandIcon, LogOut, Settings } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useNotebookStore } from "@/lib/store"
 import { cn } from "@/lib/utils"
+import { useTheme } from "next-themes"
+import { useAuthenticator } from "@aws-amplify/ui-react"
 
 interface QuickSwitcherProps {
     isOpen: boolean
@@ -17,28 +19,49 @@ export function QuickSwitcher({ isOpen, onClose }: QuickSwitcherProps) {
     const [selectedIndex, setSelectedIndex] = useState(0)
     const inputRef = useRef<HTMLInputElement>(null)
     const router = useRouter()
+    const { theme, setTheme } = useTheme()
+    const { signOut } = useAuthenticator()
 
-    const { notebooks, recentNotebooks, addToRecent } = useNotebookStore()
+    const { notebooks, recentNotebooks, addToRecent, addNotebook } = useNotebookStore()
 
-    // Filter notebooks by query
-    const filteredNotebooks = useMemo(() => {
-        if (!query.trim()) {
-            // Show recent notebooks first, then all
-            const recentItems = recentNotebooks
+    // Global Actions
+    const actions = useMemo(() => [
+        { id: 'action-create', title: 'Create New Notebook', icon: <Plus className="w-4 h-4" />, shortcut: '⌘N', action: async () => { const id = await addNotebook(); router.push(`/notebooks/${id}`); onClose(); } },
+        { id: 'action-theme', title: `Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`, icon: theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />, action: () => setTheme(theme === 'dark' ? 'light' : 'dark') },
+        { id: 'action-settings', title: 'Settings', icon: <Settings className="w-4 h-4" />, action: () => { } },
+        { id: 'action-signout', title: 'Sign Out', icon: <LogOut className="w-4 h-4 text-red-500" />, action: signOut },
+    ], [theme, addNotebook, router, onClose, setTheme, signOut])
+
+    const filteredItems = useMemo(() => {
+        const lowerQuery = query.toLowerCase().trim()
+        
+        // 1. Filtered Actions
+        const filteredActions = actions.filter(a => a.title.toLowerCase().includes(lowerQuery))
+        
+        // 2. Filtered Notebooks
+        const filteredNotebooks = notebooks.filter(n => 
+            n.title.toLowerCase().includes(lowerQuery) || 
+            n.tags?.some(t => t.toLowerCase().includes(lowerQuery))
+        )
+
+        // If no query, prioritize recent
+        if (!lowerQuery) {
+            const recent = recentNotebooks
                 .map(id => notebooks.find(n => n.id === id))
-                .filter(Boolean)
-            const otherItems = notebooks.filter(n => !recentNotebooks.includes(n.id))
-            return [...recentItems, ...otherItems].slice(0, 10)
+                .filter(Boolean) as any[]
+            const others = notebooks.filter(n => !recentNotebooks.includes(n.id))
+            return [
+                ...actions.slice(0, 2).map(a => ({ ...a, type: 'action' })),
+                ...recent.map(n => ({ ...n, type: 'notebook', isRecent: true })),
+                ...others.map(n => ({ ...n, type: 'notebook' }))
+            ].filter(item => item !== undefined).slice(0, 15)
         }
 
-        const lowerQuery = query.toLowerCase()
-        return notebooks
-            .filter(n =>
-                n.title.toLowerCase().includes(lowerQuery) ||
-                n.tags?.some(t => t.toLowerCase().includes(lowerQuery))
-            )
-            .slice(0, 10)
-    }, [query, notebooks, recentNotebooks])
+        return [
+            ...filteredActions.map(a => ({ ...a, type: 'action' })),
+            ...filteredNotebooks.map(n => ({ ...n, type: 'notebook' }))
+        ].slice(0, 15)
+    }, [query, notebooks, recentNotebooks, actions])
 
     // Focus input when opened
     useEffect(() => {
@@ -57,7 +80,7 @@ export function QuickSwitcher({ isOpen, onClose }: QuickSwitcherProps) {
             switch (e.key) {
                 case "ArrowDown":
                     e.preventDefault()
-                    setSelectedIndex(i => Math.min(i + 1, filteredNotebooks.length - 1))
+                    setSelectedIndex(i => Math.min(i + 1, filteredItems.length - 1))
                     break
                 case "ArrowUp":
                     e.preventDefault()
@@ -65,9 +88,12 @@ export function QuickSwitcher({ isOpen, onClose }: QuickSwitcherProps) {
                     break
                 case "Enter":
                     e.preventDefault()
-                    if (filteredNotebooks[selectedIndex]) {
-                        const selected = filteredNotebooks[selectedIndex]
-                        if (selected) {
+                    const selected = filteredItems[selectedIndex]
+                    if (selected) {
+                        if (selected.type === 'action') {
+                            selected.action()
+                            if (selected.id !== 'action-theme') onClose()
+                        } else {
                             addToRecent(selected.id)
                             router.push(`/notebooks/${selected.id}`)
                             onClose()
@@ -79,12 +105,10 @@ export function QuickSwitcher({ isOpen, onClose }: QuickSwitcherProps) {
                     break
             }
         }
-
+ 
         window.addEventListener("keydown", handleKeyDown)
         return () => window.removeEventListener("keydown", handleKeyDown)
-    }, [isOpen, selectedIndex, filteredNotebooks, router, onClose, addToRecent])
-
-    const isRecent = (id: string) => recentNotebooks.includes(id)
+    }, [isOpen, selectedIndex, filteredItems, router, onClose, addToRecent])
 
     return (
         <AnimatePresence>
@@ -95,22 +119,21 @@ export function QuickSwitcher({ isOpen, onClose }: QuickSwitcherProps) {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200]"
+                        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[200]"
                         onClick={onClose}
                     />
 
-                    {/* Modal */}
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: -20 }}
+                        initial={{ opacity: 0, scale: 0.98, y: -10 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: -20 }}
-                        transition={{ duration: 0.15 }}
-                        className="fixed top-[20%] left-1/2 -translate-x-1/2 w-full max-w-lg z-[201]"
+                        exit={{ opacity: 0, scale: 0.98, y: -10 }}
+                        transition={{ duration: 0.2, ease: "easeOut" }}
+                        className="fixed top-[15%] left-1/2 -translate-x-1/2 w-full max-w-2xl z-[201] px-4"
                     >
-                        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+                        <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-2xl rounded-2xl shadow-[0_0_80px_rgba(0,0,0,0.1)] dark:shadow-[0_0_80px_rgba(0,0,0,0.4)] border border-gray-200/50 dark:border-gray-800/50 overflow-hidden">
                             {/* Search Input */}
-                            <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-800">
-                                <Search className="w-5 h-5 text-gray-400" />
+                            <div className="flex items-center gap-4 px-6 py-5 border-b border-gray-100/50 dark:border-gray-800/50">
+                                <Search className="w-6 h-6 text-gray-400" />
                                 <input
                                     ref={inputRef}
                                     type="text"
@@ -119,66 +142,96 @@ export function QuickSwitcher({ isOpen, onClose }: QuickSwitcherProps) {
                                         setQuery(e.target.value)
                                         setSelectedIndex(0)
                                     }}
-                                    placeholder="Search notebooks..."
-                                    className="flex-1 bg-transparent outline-none text-gray-900 dark:text-white placeholder:text-gray-400"
+                                    placeholder="Type a command or search..."
+                                    className="flex-1 bg-transparent outline-none text-lg text-gray-900 dark:text-white placeholder:text-gray-400 font-medium"
                                 />
-                                <kbd className="hidden sm:block px-2 py-0.5 text-xs font-medium text-gray-400 bg-gray-100 dark:bg-gray-800 rounded">
-                                    esc
-                                </kbd>
+                                <div className="flex items-center gap-1.5">
+                                     <kbd className="px-2 py-1 text-[10px] font-bold text-gray-400 bg-gray-100/50 dark:bg-gray-800/50 border border-gray-200/50 dark:border-gray-700/50 rounded-md uppercase tracking-wider">
+                                        esc
+                                    </kbd>
+                                </div>
                             </div>
-
+ 
                             {/* Results */}
-                            <div className="max-h-[300px] overflow-y-auto py-2">
-                                {filteredNotebooks.length === 0 ? (
-                                    <div className="px-4 py-8 text-center text-gray-400">
-                                        No notebooks found
+                            <div className="max-h-[450px] overflow-y-auto py-3 px-2 custom-scrollbar">
+                                {filteredItems.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-12 text-gray-400 gap-4">
+                                        <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-full">
+                                            <Search className="w-8 h-8 opacity-20" />
+                                        </div>
+                                        <p className="text-sm font-medium">No results found for "{query}"</p>
                                     </div>
                                 ) : (
-                                    filteredNotebooks.map((notebook, index) => notebook && (
+                                    filteredItems.map((item: any, index: number) => (
                                         <button
-                                            key={notebook.id}
+                                            key={item.id}
                                             onClick={() => {
-                                                addToRecent(notebook.id)
-                                                router.push(`/notebooks/${notebook.id}`)
-                                                onClose()
+                                                if (item.type === 'action') {
+                                                    item.action()
+                                                    if (item.id !== 'action-theme') onClose()
+                                                } else {
+                                                    addToRecent(item.id)
+                                                    router.push(`/notebooks/${item.id}`)
+                                                    onClose()
+                                                }
                                             }}
                                             className={cn(
-                                                "w-full flex items-center gap-3 px-4 py-2 text-left transition-colors",
+                                                "w-full flex items-center gap-4 px-4 py-3 text-left transition-all rounded-xl relative group",
                                                 index === selectedIndex
-                                                    ? "bg-gray-100 dark:bg-gray-800"
-                                                    : "hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                                                    ? "bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-lg scale-[1.02] z-10"
+                                                    : "hover:bg-gray-100 dark:hover:bg-gray-800/50 text-gray-600 dark:text-gray-300"
                                             )}
                                         >
-                                            {isRecent(notebook.id) ? (
-                                                <Clock className="w-4 h-4 text-gray-400" />
-                                            ) : (
-                                                <FileText className="w-4 h-4 text-gray-400" />
-                                            )}
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                                                        {notebook.title}
-                                                    </span>
-                                                    {notebook.isFavorite && (
-                                                        <Star className="w-3 h-3 text-amber-400 fill-current" />
-                                                    )}
-                                                </div>
-                                                {notebook.tags && notebook.tags.length > 0 && (
-                                                    <div className="text-xs text-gray-400 truncate">
-                                                        {notebook.tags.join(", ")}
-                                                    </div>
+                                            <div className={cn(
+                                                "p-2 rounded-lg transition-colors",
+                                                index === selectedIndex ? "bg-white/20 dark:bg-black/10" : "bg-gray-100 dark:bg-gray-800"
+                                            )}>
+                                                {item.type === 'action' ? item.icon : (
+                                                    item.isRecent ? <Clock className="w-4 h-4" /> : <FileText className="w-4 h-4" />
                                                 )}
                                             </div>
+
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-sm font-bold truncate">
+                                                        {item.title}
+                                                    </span>
+                                                    {item.shortcut && (
+                                                        <kbd className={cn(
+                                                            "text-[10px] font-mono px-1.5 py-0.5 rounded",
+                                                            index === selectedIndex ? "bg-white/20 text-white" : "bg-gray-100 dark:bg-gray-800 text-gray-400"
+                                                        )}>
+                                                            {item.shortcut}
+                                                        </kbd>
+                                                    )}
+                                                </div>
+                                                {item.type === 'notebook' && (
+                                                     <div className={cn(
+                                                        "text-[10px] font-medium uppercase tracking-widest mt-0.5",
+                                                        index === selectedIndex ? "text-white/60" : "text-gray-400"
+                                                     )}>
+                                                        {item.isRecent ? 'Recently Viewed' : (item.tags?.join(", ") || 'Notebook')}
+                                                     </div>
+                                                )}
+                                            </div>
+
+                                            {item.type === 'notebook' && item.isFavorite && (
+                                                <Star className={cn("w-4 h-4 fill-current", index === selectedIndex ? "text-white" : "text-yellow-400")} />
+                                            )}
                                         </button>
                                     ))
                                 )}
                             </div>
-
+ 
                             {/* Footer Hint */}
-                            <div className="px-4 py-2 border-t border-gray-100 dark:border-gray-800 text-xs text-gray-400 flex items-center gap-4">
-                                <span><kbd className="font-medium">↑↓</kbd> navigate</span>
-                                <span><kbd className="font-medium">↵</kbd> open</span>
-                                <span><kbd className="font-medium">esc</kbd> close</span>
+                            <div className="px-6 py-3 bg-gray-50/50 dark:bg-gray-800/20 border-t border-gray-100/50 dark:border-gray-800/50 flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                                <div className="flex items-center gap-6">
+                                    <span className="flex items-center gap-1.5"><Keyboard className="w-3 h-3" /> navigate</span>
+                                    <span className="flex items-center gap-1.5"><CommandIcon className="w-3 h-3" /> enter to open</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="opacity-50 font-medium lowercase italic">Powered by Atmosphere</span>
+                                </div>
                             </div>
                         </div>
                     </motion.div>

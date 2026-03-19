@@ -68,6 +68,7 @@ export function Editor({ id }: EditorProps) {
     const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
     const [isPinned, setIsPinned] = useState(false);
     const [paperStyle, setPaperStyle] = useState<'clean' | 'dots' | 'grid' | 'lines'>('clean');
+    const [wordGoal, setWordGoal] = useState(500); // 500 word default goal
 
     // Save Logic
     const saveTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -360,7 +361,12 @@ export function Editor({ id }: EditorProps) {
 
 
     return (
-        <div className="flex w-full h-full bg-[#f8f9fa] dark:bg-gray-950 text-gray-900 dark:text-gray-100 font-sans overflow-hidden relative">
+        <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+            className="flex w-full h-full bg-transparent text-gray-900 dark:text-gray-100 font-sans overflow-hidden relative"
+        >
 
             {/* Main Content Area */}
             <main className="flex-1 flex flex-col h-full overflow-hidden relative">
@@ -383,10 +389,15 @@ export function Editor({ id }: EditorProps) {
                             </div>
 
                             {/* Paper Sheet View */}
-                            <div className={cn(
-                                "bg-white dark:bg-gray-900 shadow-[0_0_50px_rgba(0,0,0,0.04)] dark:shadow-[0_0_50px_rgba(0,0,0,0.3)] border border-gray-100 dark:border-gray-800 rounded-sm min-h-[1100px] flex flex-col relative transition-all",
-                                `paper-${paperStyle}`
-                            )}>
+                            <motion.div 
+                                initial={{ scale: 0.98, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                transition={{ type: "spring", stiffness: 100, damping: 20, delay: 0.2 }}
+                                className={cn(
+                                    "bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl shadow-[0_0_50px_rgba(0,0,0,0.02)] dark:shadow-[0_0_50px_rgba(0,0,0,0.2)] border border-gray-100/50 dark:border-gray-800/10 rounded-sm min-h-[1100px] flex flex-col relative transition-all",
+                                    `paper-${paperStyle}`
+                                )}
+                            >
                                 {/* Page content loading overlay */}
                                 <div className={cn(
                                     "absolute inset-0 z-40 content-overlay opacity-0",
@@ -669,7 +680,7 @@ export function Editor({ id }: EditorProps) {
                                         />
                                     </BlockNoteView>
                                 </div>
-                            </div>
+                            </motion.div>
                         </div>
                     </div>
                 </div>
@@ -713,11 +724,28 @@ export function Editor({ id }: EditorProps) {
 
                         {/* Right: Mode Toggles + Add Page */}
                         <div className="flex items-center gap-2">
-                            {/* Word Count + Last Saved */}
-                            <div className="hidden sm:flex items-center gap-3 text-xs text-gray-400 dark:text-gray-500 mr-2 font-mono">
-                                <span title="Words">{wordCount.words} words</span>
-                                <span className="text-gray-200 dark:text-gray-700">•</span>
-                                <span title="Reading time">{wordCount.readingTime} min read</span>
+                            {/* Word Count + Writing Vessel */}
+                            <div className="hidden sm:flex items-center gap-4 mr-2">
+                                <div className="flex items-center gap-3 text-xs text-gray-400 dark:text-gray-500 font-mono">
+                                    <span title="Words">{wordCount.words} words</span>
+                                    <span className="text-gray-200 dark:text-gray-700 font-normal">/</span>
+                                    <span className="text-gray-300 dark:text-gray-600">{wordGoal}</span>
+                                </div>
+                                {/* Vessel Container */}
+                                <div className="w-24 h-2 bg-gray-100 dark:bg-gray-800/50 rounded-full overflow-hidden relative border border-gray-50/50 dark:border-gray-700/30">
+                                    <motion.div 
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${Math.min(100, (wordCount.words / wordGoal) * 100)}%` }}
+                                        transition={{ type: "spring", stiffness: 50, damping: 20 }}
+                                        className={cn(
+                                            "h-full rounded-full transition-colors duration-500",
+                                            wordCount.words >= wordGoal ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]" : "bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.4)]"
+                                        )}
+                                    />
+                                    {/* Liquid Glow Effect */}
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
+                                </div>
+                            </div>
                                 {lastSavedAt && (
                                     <>
                                         <span className="text-gray-200 dark:text-gray-700">•</span>
@@ -750,7 +778,6 @@ export function Editor({ id }: EditorProps) {
                                 <Plus className="w-4 h-4" />
                                 <span>Add Page</span>
                             </button>
-                        </div>
                     </div>
                 </div>
             </main >
@@ -806,6 +833,6 @@ export function Editor({ id }: EditorProps) {
                 currentNotebookTitle={title}
             />
 
-        </div >
+        </motion.div >
     );
 }

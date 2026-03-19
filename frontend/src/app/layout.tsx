@@ -4,6 +4,7 @@ import ConfigureAmplifyClientSide from "@/components/auth/ConfigureAmplify";
 import { AuthWrapper } from "@/components/auth/AuthWrapper";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner";
+import { Atmosphere } from "@/components/ui/Atmosphere";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -29,13 +30,16 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased selection:bg-blue-500/10`}
         suppressHydrationWarning
       >
         <ThemeProvider>
           <ConfigureAmplifyClientSide />
           <AuthWrapper>
-            {children}
+            <Atmosphere />
+            <div className="relative z-0 min-h-screen">
+              {children}
+            </div>
           </AuthWrapper>
           <Toaster />
         </ThemeProvider>
