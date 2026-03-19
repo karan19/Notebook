@@ -8,7 +8,7 @@ import { FileText, MoreVertical, Trash2, ExternalLink, Search, Star, UserCircle,
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, memo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthenticator } from '@aws-amplify/ui-react';
 import { motion, AnimatePresence } from "motion/react";
@@ -41,6 +41,120 @@ function NotebookCardSkeleton() {
     </div>
   );
 }
+
+interface NotebookCardProps {
+  notebook: any;
+  index: number;
+  onDelete: (id: string, title: string) => void;
+  onToggleFavorite: (id: string, isFavorite: boolean) => void;
+  onTogglePin: (id: string, isPinned: boolean) => void;
+  onDuplicate: (id: string, title: string) => void;
+  onAddToRecent: (id: string) => void;
+}
+
+const NotebookCard = memo(({ notebook, index, onDelete, onToggleFavorite, onTogglePin, onDuplicate, onAddToRecent }: NotebookCardProps) => {
+  return (
+    <div
+      className="group relative flex flex-col bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-6 card-animate-in card-hover"
+      style={{ animationDelay: `${index * 0.05}s` }}
+    >
+      <div className="absolute top-4 right-4 z-10 flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onTogglePin(notebook.id, notebook.isPinned || false); }}
+          className={cn(
+            "h-8 w-8 rounded-lg transition-all",
+            notebook.isPinned ? "text-blue-500 bg-blue-50 dark:bg-blue-900/30" : "text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700"
+          )}
+        >
+          <Pin className={cn("h-4 w-4", notebook.isPinned && "fill-current")} />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleFavorite(notebook.id, notebook.isFavorite || false); }}
+          className={cn(
+            "h-8 w-8 rounded-lg transition-all",
+            notebook.isFavorite ? "text-yellow-400 bg-yellow-50 dark:bg-yellow-900/30" : "text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700"
+          )}
+        >
+          <Star className={cn("h-4 w-4", notebook.isFavorite && "fill-current")} />
+        </Button>
+      </div>
+
+      <Link
+        href={`/notebooks/${notebook.id}`}
+        onClick={() => onAddToRecent(notebook.id)}
+        className="flex-1 flex flex-col gap-4"
+      >
+        <div className="flex items-start justify-between">
+          <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-xl group-hover:bg-black dark:group-hover:bg-white group-hover:text-white dark:group-hover:text-black transition-all duration-300">
+            <FileText className="h-6 w-6" />
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <h3 className="font-bold text-gray-900 dark:text-white text-lg group-hover:text-black dark:group-hover:text-white transition-colors truncate pr-8">
+            {notebook.title}
+          </h3>
+          <div className="flex items-center gap-2 text-xs font-medium text-gray-400 dark:text-gray-500">
+            <span>Edited {formatDistanceToNow(notebook.lastEditedAt)} ago</span>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {notebook.pages && (
+            <span className="px-2 py-1 bg-blue-50 dark:bg-blue-900/30 text-[10px] font-bold text-blue-500 rounded-md uppercase tracking-wider">
+              {notebook.pages.length} {notebook.pages.length === 1 ? 'page' : 'pages'}
+            </span>
+          )}
+        </div>
+      </Link>
+
+      <div className="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+              <MoreVertical className="h-4 w-4 text-gray-400" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="rounded-xl border-gray-100 dark:border-gray-700 dark:bg-gray-800 shadow-xl p-1 w-40">
+            <Link href={`/notebooks/${notebook.id}`}>
+              <DropdownMenuItem className="gap-3 py-2.5 rounded-lg cursor-pointer font-medium dark:text-gray-200 dark:hover:bg-gray-700">
+                <ExternalLink className="h-4 w-4" /> Open
+              </DropdownMenuItem>
+            </Link>
+            <DropdownMenuItem
+              className="gap-3 py-2.5 rounded-lg cursor-pointer font-medium dark:text-gray-200 dark:hover:bg-gray-700"
+              onClick={() => onTogglePin(notebook.id, notebook.isPinned || false)}
+            >
+              <Pin className="h-4 w-4" /> {notebook.isPinned ? 'Unpin from Top' : 'Pin to Top'}
+            </DropdownMenuItem>
+
+            <DropdownMenuItem
+              className="gap-3 py-2.5 rounded-lg cursor-pointer font-medium dark:text-gray-200 dark:hover:bg-gray-700"
+              onClick={() => onDuplicate(notebook.id, notebook.title)}
+            >
+              <Copy className="h-4 w-4" /> Duplicate
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator className="dark:bg-gray-700" />
+
+            <DropdownMenuItem
+              className="gap-3 py-2.5 rounded-lg cursor-pointer text-destructive focus:text-destructive font-medium"
+              onClick={() => onDelete(notebook.id, notebook.title)}
+            >
+              <Trash2 className="h-4 w-4" /> Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  );
+});
+
+NotebookCard.displayName = 'NotebookCard';
 
 export default function Dashboard() {
   const { notebooks, deleteNotebook, fetchNotebooks, addNotebook, loading, searchQuery, setSearchQuery, currentFilter, toggleFavorite, togglePin, duplicateNotebook, sortBy, sortOrder, setSort, addToRecent } = useNotebookStore();
@@ -80,7 +194,7 @@ export default function Dashboard() {
 
   const { fire: fireConfetti } = useConfetti();
 
-  const handleCreateFirst = async () => {
+  const handleCreateFirst = useCallback(async () => {
     try {
       const id = await addNotebook();
       fireConfetti({ particleCount: 60 });
@@ -89,35 +203,39 @@ export default function Dashboard() {
     } catch (e) {
       toast.error("Failed to create notebook", { description: "Please try again." });
     }
-  };
+  }, [addNotebook, fireConfetti, router]);
 
-  const handleDelete = async (notebookId: string, notebookTitle: string) => {
+  const handleDelete = useCallback(async (notebookId: string, notebookTitle: string) => {
     try {
       await deleteNotebook(notebookId);
       toast.success("Notebook deleted", { description: `"${notebookTitle}" has been removed.` });
     } catch (e) {
       toast.error("Failed to delete notebook");
     }
-  };
+  }, [deleteNotebook]);
 
-  const handleToggleFavorite = async (notebookId: string, isFavorite: boolean) => {
+  const handleToggleFavorite = useCallback(async (notebookId: string, isFavorite: boolean) => {
     await toggleFavorite(notebookId);
     toast.success(isFavorite ? "Removed from favorites" : "Added to favorites");
-  };
+  }, [toggleFavorite]);
 
-  const handleTogglePin = async (notebookId: string, isPinned: boolean) => {
+  const handleTogglePin = useCallback(async (notebookId: string, isPinned: boolean) => {
     await togglePin(notebookId);
     toast.success(isPinned ? "Unpinned from top" : "Pinned to top");
-  };
+  }, [togglePin]);
 
-  const handleDuplicate = async (notebookId: string, title: string) => {
+  const handleDuplicate = useCallback(async (notebookId: string, title: string) => {
     const promise = duplicateNotebook(notebookId);
     toast.promise(promise, {
       loading: `Duplicating "${title}"...`,
       success: "Notebook duplicated successfully",
       error: "Failed to duplicate notebook"
     });
-  };
+  }, [duplicateNotebook]);
+
+  const handleAddToRecent = useCallback((id: string) => {
+    addToRecent(id);
+  }, [addToRecent]);
 
   const filteredNotebooks = useMemo(() => {
     let result = notebooks.filter(nb => {
@@ -293,119 +411,20 @@ export default function Dashboard() {
               )}
             </motion.div>
           ) : (
-            <motion.div
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8"
-            >
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
               {filteredNotebooks.map((notebook, index) => (
-                <motion.div
+                <NotebookCard
                   key={notebook.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{
-                    duration: 0.4,
-                    delay: index * 0.05, // Faster stagger
-                    type: "spring",
-                    stiffness: 300,
-                    damping: 24
-                  }}
-                  whileHover={{ scale: 1.02, y: -4 }}
-                  className="group relative flex flex-col bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-6 transition-all hover:shadow-[0_20px_50px_rgba(0,0,0,0.08)] dark:hover:shadow-[0_20px_50px_rgba(0,0,0,0.3)] hover:border-gray-200 dark:hover:border-gray-600"
-                >
-                  <div className="absolute top-4 right-4 z-10 flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleTogglePin(notebook.id, notebook.isPinned || false); }}
-                      className={cn(
-                        "h-8 w-8 rounded-lg transition-all",
-                        notebook.isPinned ? "text-blue-500 bg-blue-50 dark:bg-blue-900/30" : "text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700"
-                      )}
-                    >
-                      <Pin className={cn("h-4 w-4", notebook.isPinned && "fill-current")} />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleToggleFavorite(notebook.id, notebook.isFavorite || false); }}
-                      className={cn(
-                        "h-8 w-8 rounded-lg transition-all",
-                        notebook.isFavorite ? "text-yellow-400 bg-yellow-50 dark:bg-yellow-900/30" : "text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700"
-                      )}
-                    >
-                      <Star className={cn("h-4 w-4", notebook.isFavorite && "fill-current")} />
-                    </Button>
-                  </div>
-
-                  <Link
-                    href={`/notebooks/${notebook.id}`}
-                    onClick={() => addToRecent(notebook.id)}
-                    className="flex-1 flex flex-col gap-4"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-xl group-hover:bg-black dark:group-hover:bg-white group-hover:text-white dark:group-hover:text-black transition-all duration-300">
-                        <FileText className="h-6 w-6" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <h3 className="font-bold text-gray-900 dark:text-white text-lg group-hover:text-black dark:group-hover:text-white transition-colors truncate pr-8">
-                        {notebook.title}
-                      </h3>
-                      <div className="flex items-center gap-2 text-xs font-medium text-gray-400 dark:text-gray-500">
-                        <span>Edited {formatDistanceToNow(notebook.lastEditedAt)} ago</span>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      {notebook.pages && (
-                        <span className="px-2 py-1 bg-blue-50 dark:bg-blue-900/30 text-[10px] font-bold text-blue-500 rounded-md uppercase tracking-wider">
-                          {notebook.pages.length} {notebook.pages.length === 1 ? 'page' : 'pages'}
-                        </span>
-                      )}
-                    </div>
-                  </Link>
-
-                  <div className="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                          <MoreVertical className="h-4 w-4 text-gray-400" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="rounded-xl border-gray-100 dark:border-gray-700 dark:bg-gray-800 shadow-xl p-1 w-40">
-                        <Link href={`/notebooks/${notebook.id}`}>
-                          <DropdownMenuItem className="gap-3 py-2.5 rounded-lg cursor-pointer font-medium dark:text-gray-200 dark:hover:bg-gray-700">
-                            <ExternalLink className="h-4 w-4" /> Open
-                          </DropdownMenuItem>
-                        </Link>
-                        <DropdownMenuItem
-                          className="gap-3 py-2.5 rounded-lg cursor-pointer font-medium dark:text-gray-200 dark:hover:bg-gray-700"
-                          onClick={() => handleTogglePin(notebook.id, notebook.isPinned || false)}
-                        >
-                          <Pin className="h-4 w-4" /> {notebook.isPinned ? 'Unpin from Top' : 'Pin to Top'}
-                        </DropdownMenuItem>
-
-                        <DropdownMenuItem
-                          className="gap-3 py-2.5 rounded-lg cursor-pointer font-medium dark:text-gray-200 dark:hover:bg-gray-700"
-                          onClick={() => handleDuplicate(notebook.id, notebook.title)}
-                        >
-                          <Copy className="h-4 w-4" /> Duplicate
-                        </DropdownMenuItem>
-
-                        <DropdownMenuSeparator className="dark:bg-gray-700" />
-
-                        <DropdownMenuItem
-                          className="gap-3 py-2.5 rounded-lg cursor-pointer text-destructive focus:text-destructive font-medium"
-                          onClick={() => handleDelete(notebook.id, notebook.title)}
-                        >
-                          <Trash2 className="h-4 w-4" /> Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </motion.div>
+                  notebook={notebook}
+                  index={index}
+                  onDelete={handleDelete}
+                  onToggleFavorite={handleToggleFavorite}
+                  onTogglePin={handleTogglePin}
+                  onDuplicate={handleDuplicate}
+                  onAddToRecent={handleAddToRecent}
+                />
               ))}
-            </motion.div>
+            </div>
           )}
         </div>
       </main>

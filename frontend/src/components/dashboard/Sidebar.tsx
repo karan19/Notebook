@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, memo, useMemo } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useAuthenticator } from '@aws-amplify/ui-react';
@@ -11,8 +11,14 @@ import { cn } from "@/lib/utils";
 import { motion } from "motion/react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
-export function Sidebar() {
-    const { addNotebook, searchQuery, setSearchQuery, currentFilter, setFilter, recentNotebooks, notebooks, addToRecent } = useNotebookStore();
+export const Sidebar = memo(() => {
+    const addNotebook = useNotebookStore(state => state.addNotebook);
+    const currentFilter = useNotebookStore(state => state.currentFilter);
+    const setFilter = useNotebookStore(state => state.setFilter);
+    const recentNotebooks = useNotebookStore(state => state.recentNotebooks);
+    const notebooks = useNotebookStore(state => state.notebooks);
+    const addToRecent = useNotebookStore(state => state.addToRecent);
+
     const { signOut } = useAuthenticator();
     const router = useRouter();
     const pathname = usePathname();
@@ -55,10 +61,12 @@ export function Sidebar() {
     };
 
     // Get recent notebook details
-    const recentItems = recentNotebooks
-        .map(id => notebooks.find(n => n.id === id))
-        .filter(Boolean)
-        .slice(0, 5);
+    const recentItems = useMemo(() => {
+        return recentNotebooks
+            .map(id => notebooks.find(n => n.id === id))
+            .filter(Boolean)
+            .slice(0, 5);
+    }, [recentNotebooks, notebooks]);
 
     return (
         <motion.div
@@ -202,4 +210,6 @@ export function Sidebar() {
             </div>
         </motion.div>
     );
-}
+});
+
+Sidebar.displayName = "Sidebar";

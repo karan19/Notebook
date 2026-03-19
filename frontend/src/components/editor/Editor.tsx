@@ -68,6 +68,21 @@ export function Editor({ id }: EditorProps) {
             saveTimeout.current = setTimeout(async () => {
                 const html = editor.blocksToFullHTML(editor.document);
                 console.log(`[Editor] Auto-saving page ${activePageId}...`);
+
+                // Update word count inside debounce
+                const text = editor.document
+                    .map(block => {
+                        if ('content' in block && Array.isArray(block.content)) {
+                            return (block.content as Array<{ text?: string }>).map(c => c.text || '').join('');
+                        }
+                        return '';
+                    })
+                    .join(' ');
+                const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+                const chars = text.length;
+                const readingTime = Math.ceil(words / 200); // ~200 wpm
+                setWordCount({ words, chars, readingTime });
+
                 try {
                     await saveContent(id, html, activePageId);
                     setSaveStatus('saved');
@@ -79,22 +94,6 @@ export function Editor({ id }: EditorProps) {
                     toast.error("Failed to save", { description: "Click the error icon to retry." });
                 }
             }, 1000); // 1s debounce
-        }
-
-        // Update word count
-        if (editor) {
-            const text = editor.document
-                .map(block => {
-                    if ('content' in block && Array.isArray(block.content)) {
-                        return (block.content as Array<{ text?: string }>).map(c => c.text || '').join('');
-                    }
-                    return '';
-                })
-                .join(' ');
-            const words = text.trim() ? text.trim().split(/\s+/).length : 0;
-            const chars = text.length;
-            const readingTime = Math.ceil(words / 200); // ~200 wpm
-            setWordCount({ words, chars, readingTime });
         }
     };
 
@@ -333,9 +332,12 @@ export function Editor({ id }: EditorProps) {
                                 `paper-${paperStyle}`
                             )}>
                                 {/* Page content loading overlay */}
-                                <AnimatePresence>
-                                    {isContentLoading && <ContentLoadingOverlay />}
-                                </AnimatePresence>
+                                <div className={cn(
+                                    "absolute inset-0 z-40 content-overlay opacity-0",
+                                    isContentLoading && "opacity-100 active"
+                                )}>
+                                    <ContentLoadingOverlay />
+                                </div>
                                 {/* Page Number & Save Status */}
                                 <div className="absolute top-6 right-6 flex items-center gap-3">
                                     {/* Style Button */}
@@ -470,8 +472,14 @@ export function Editor({ id }: EditorProps) {
                                         <SuggestionMenuController
                                             triggerCharacter={"/"}
                                             getItems={async (query) => {
+                                                const lowerQuery = query.toLowerCase();
+
                                                 // Default items
-                                                const defaultItems = getDefaultReactSlashMenuItems(editor);
+                                                const defaultItems = getDefaultReactSlashMenuItems(editor).filter(item =>
+                                                    item.title.toLowerCase().includes(lowerQuery) ||
+                                                    (item.aliases && item.aliases.some(a => a.toLowerCase().includes(lowerQuery)))
+                                                );
+
                                                 // Custom items
                                                 const customItems = [
                                                     {
@@ -501,19 +509,12 @@ export function Editor({ id }: EditorProps) {
                                                         icon: <Link2 className="w-4 h-4" />,
                                                         subtext: "Insert a web link"
                                                     }
-                                                ];
-
-                                                const filteredDefaults = defaultItems.filter(item =>
-                                                    item.title.toLowerCase().includes(query.toLowerCase()) ||
-                                                    (item.aliases && item.aliases.some(a => a.toLowerCase().includes(query.toLowerCase())))
+                                                ].filter(item =>
+                                                    item.title.toLowerCase().includes(lowerQuery) ||
+                                                    (item.aliases && item.aliases.some(a => a.toLowerCase().includes(lowerQuery)))
                                                 );
 
-                                                const filteredCustom = customItems.filter(item =>
-                                                    item.title.toLowerCase().includes(query.toLowerCase()) ||
-                                                    (item.aliases && item.aliases.some(a => a.toLowerCase().includes(query.toLowerCase())))
-                                                );
-
-                                                return [...filteredCustom, ...filteredDefaults];
+                                                return [...customItems, ...defaultItems];
                                             }}
                                         />
                                         <SuggestionMenuController
