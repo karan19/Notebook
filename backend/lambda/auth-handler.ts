@@ -1,0 +1,71 @@
+import { APIGatewayAuthorizerResult, APIGatewayRequestAuthorizerEvent } from 'aws-lambda';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, GetCommand } from '@aws-sdk/lib-dynamodb';
+import { CognitoJwtVerifier } from 'aws-jwt-verify';
+
+const ddbClient = new DynamoDBClient({});
+const docClient = DynamoDBDocumentClient.from(ddbClient);
+const TABLE_NAME = process.env.API_KEY_TABLE_NAME!;
+const USER_POOL_ID = process.env.USER_POOL_ID!;
+const CLIENT_ID = process.env.CLIENT_ID!;
+
+const jwtVerifier = CognitoJwtVerifier.create({
+    userPoolId: USER_POOL_ID,
+    tokenUse: 'id',
+    clientId: CLIENT_ID,
+});
+
+export const handler = async (event: APIGatewayRequestAuthorizerEvent): Promise<APIGatewayAuthorizerResult> => {
+    const authHeader = event.headers?.['Authorization'] || event.headers?.['authorization'];
+    const apiKey = event.headers?.['x-api-key'] || event.headers?.['X-Api-Key'];
+
+    try {
+        // 1. Check for Cognito JWT
+        if (authHeader) {
+            const token = authHeader.replace('Bearer ', '');
+            const payload = await jwtVerifier.verify(token);
+            console.log(`Validated Cognito token for user: ${payload.sub}`);
+            return generatePolicy(payload.sub as string, 'Allow', event.methodArn, payload.sub as string);
+        }
+
+        // 2. Check for API Key
+        if (apiKey) {
+            const result = await docClient.send(new GetCommand({
+                TableName: TABLE_NAME,
+                Key: { apiKey },
+            }));
+
+            if (result.Item) {
+                const userId = result.Item.userId;
+                console.log(`Validated API key for user: ${userId}`);
+                return generatePolicy(userId, 'Allow', event.methodArn, userId);
+            }
+        }
+
+        console.log('No valid auth provided');
+        throw new Error('Unauthorized');
+    } catch (error) {
+        console.error('Auth Error:', error);
+        throw new Error('Unauthorized');
+    }
+};
+
+const generatePolicy = (principalId: string, effect: string, resource: string, userId: string): APIGatewayAuthorizerResult => {
+    return {
+        principalId,
+        policyDocument: {
+            Version: '2012-10-17',
+            Statement: [
+                {
+                    Action: 'execute-api:Invoke',
+                    Effect: effect,
+                    Resource: resource, // In production, consider wildcarding or scoping
+                },
+            ],
+        },
+        context: {
+            userId,
+        },
+    };
+};
+

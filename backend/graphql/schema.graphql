@@ -1,0 +1,37 @@
+type Page {
+  id: ID!
+  title: String
+  contentKey: String!
+}
+
+type Notebook {
+  id: ID!
+  isFavorite: Boolean
+  title: String!
+  snippet: String
+  contentKey: String!
+  pages: [Page]
+  tags: [String]
+  lastEditedAt: AWSTimestamp!
+  createdAt: AWSTimestamp!
+}
+
+type Query {
+  getNotebook(id: ID!): Notebook
+  listNotebooks: [Notebook]
+  getUploadUrl(id: ID!, pageId: String): String
+  getAssetUploadUrl(filename: String!, contentType: String!): String
+  getDownloadUrl(id: ID!, pageId: String): String
+}
+
+type Mutation {
+  createNotebook(title: String!): Notebook
+  updateNotebook(id: ID!, title: String, snippet: String, isFavorite: Boolean, contentKey: String, tags: [String], pages: [PageInput]): Notebook
+  deleteNotebook(id: ID!): ID
+}
+
+input PageInput {
+  id: ID!
+  title: String
+  contentKey: String!
+}
