@@ -390,8 +390,8 @@ export function Editor({ id }: EditorProps) {
 
                             {/* Paper Sheet View */}
                             <motion.div 
-                                initial={{ scale: 0.99, opacity: 0 }}
-                                animate={{ scale: 1, opacity: 1 }}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
                                 transition={{ duration: 0.2, ease: "easeOut" }}
                                 className={cn(
                                     "bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl shadow-[0_0_50px_rgba(0,0,0,0.02)] dark:shadow-[0_0_50px_rgba(0,0,0,0.2)] border border-gray-100/50 dark:border-gray-800/10 rounded-sm min-h-[1100px] flex flex-col relative transition-all",
