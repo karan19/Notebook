@@ -390,9 +390,9 @@ export function Editor({ id }: EditorProps) {
 
                             {/* Paper Sheet View */}
                             <motion.div 
-                                initial={{ scale: 0.98, opacity: 0 }}
+                                initial={{ scale: 0.99, opacity: 0 }}
                                 animate={{ scale: 1, opacity: 1 }}
-                                transition={{ type: "spring", stiffness: 100, damping: 20, delay: 0.2 }}
+                                transition={{ duration: 0.2, ease: "easeOut" }}
                                 className={cn(
                                     "bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl shadow-[0_0_50px_rgba(0,0,0,0.02)] dark:shadow-[0_0_50px_rgba(0,0,0,0.2)] border border-gray-100/50 dark:border-gray-800/10 rounded-sm min-h-[1100px] flex flex-col relative transition-all",
                                     `paper-${paperStyle}`
@@ -504,7 +504,7 @@ export function Editor({ id }: EditorProps) {
                                         value={title}
                                         onChange={handleTitleChange}
                                         style={{ fontSize: "32px", height: "auto" }}
-                                        className="w-full font-bold tracking-tight text-gray-900 dark:text-white border-none outline-none focus:outline-none focus:ring-0 p-0 bg-transparent placeholder:text-gray-200 dark:placeholder:text-gray-600 leading-tight mb-2 focus-ring-premium rounded-sm"
+                                        className="w-full font-bold tracking-tight text-gray-900 dark:text-white border-none outline-none focus:outline-none focus:ring-0 p-0 bg-transparent placeholder:text-gray-200 dark:placeholder:text-gray-600 leading-tight mb-2 rounded-sm"
                                         placeholder="Notebook Title"
                                     />
 

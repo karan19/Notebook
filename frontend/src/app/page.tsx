@@ -86,36 +86,19 @@ const ExpandingCard = ({
             <motion.div
                 layoutId={`card-bg-${notebookId}`}
                 onClick={handleExpand}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{
-                    duration: 0.4,
-                    delay: index * 0.05,
-                    ease: "easeOut",
-                    layout: { type: "spring", stiffness: 200, damping: 25 }
+                    duration: 0.3,
+                    delay: index * 0.03,
+                    ease: [0.23, 1, 0.32, 1],
+                    layout: { type: "spring", stiffness: 300, damping: 30 }
                 }}
                 className={cn(
                     "relative flex flex-col h-full bg-white/70 dark:bg-gray-900/60 backdrop-blur-xl border border-gray-100/50 dark:border-gray-800/50 rounded-2xl p-6 transition-all group overflow-hidden cursor-pointer",
-                    isExpanding ? "fixed inset-0 z-[100] !m-0 !rounded-none !border-none !bg-white dark:!bg-gray-900" : "card-hover"
+                    isExpanding ? "fixed inset-0 z-[100] !m-0 !rounded-none !border-none !bg-white dark:!bg-gray-950" : "card-hover"
                 )}
             >
-                {/* Internal Expansion Overlay */}
-                {isExpanding && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="absolute inset-0 bg-white dark:bg-gray-950 z-[101] flex items-center justify-center"
-                    >
-                         <motion.div 
-                            initial={{ scale: 0.9, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            className="flex flex-col items-center gap-4"
-                         >
-                            <FileText className="w-12 h-12 text-blue-500 animate-pulse" />
-                            <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Opening...</span>
-                         </motion.div>
-                    </motion.div>
-                )}
 
                 {children}
             </motion.div>
