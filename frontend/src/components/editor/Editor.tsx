@@ -8,7 +8,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
-import { ChevronLeft, ChevronRight, List, Plus, Trash2, X, PanelRightClose, Cloud, Check, Loader2, AlertCircle, BookOpen, Focus, FileText, Download, Eye, Pin, Copy, Grid3X3, MoreHorizontal, AlignJustify, File, Calendar, Link2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, List, Plus, Trash2, X, PanelRightClose, Cloud, Check, Loader2, AlertCircle, BookOpen, Focus, Download, Eye, Pin, Copy, Grid3X3, MoreHorizontal, AlignJustify, File, Calendar, Link2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
@@ -62,31 +62,14 @@ export function Editor({ id }: EditorProps) {
     const { resolvedTheme } = useTheme();
 
     // New feature states
-    const [wordCount, setWordCount] = useState({ words: 0, chars: 0, readingTime: 0 });
     const [isReadingMode, setIsReadingMode] = useState(false);
     const [isFocusMode, setIsFocusMode] = useState(false);
     const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
     const [isPinned, setIsPinned] = useState(false);
     const [paperStyle, setPaperStyle] = useState<'clean' | 'dots' | 'grid' | 'lines'>('clean');
-    const [wordGoal, setWordGoal] = useState(500); // 500 word default goal
 
     // Save Logic
     const saveTimeout = useRef<NodeJS.Timeout | null>(null);
-    const updateWordCount = () => {
-        if (!editor) return;
-        const text = editor.document
-            .map(block => {
-                if ('content' in block && Array.isArray(block.content)) {
-                    return (block.content as Array<{ text?: string }>).map(c => c.text || '').join('');
-                }
-                return '';
-            })
-            .join(' ');
-        const words = text.trim() ? text.trim().split(/\s+/).length : 0;
-        const chars = text.length;
-        const readingTime = Math.ceil(words / 200); // ~200 wpm
-        setWordCount({ words, chars, readingTime });
-    };
 
     const handleContentChange = () => {
         if (!isInitializing.current && activePageId) {
@@ -96,8 +79,6 @@ export function Editor({ id }: EditorProps) {
                 const html = editor.blocksToFullHTML(editor.document);
                 console.log(`[Editor] Auto-saving page ${activePageId}...`);
 
-                // Update word count inside debounce
-                updateWordCount();
 
                 try {
                     await saveContent(id, html, activePageId);
@@ -146,7 +127,6 @@ export function Editor({ id }: EditorProps) {
             setSaveStatus('saving');
             try {
                 const html = editor.blocksToFullHTML(editor.document);
-                updateWordCount();
                 await saveContent(id, html, activePageId);
                 setSaveStatus('saved');
                 setTimeout(() => setSaveStatus('idle'), 2000);
@@ -218,10 +198,8 @@ export function Editor({ id }: EditorProps) {
                         const blocks = await editor.tryParseHTMLToBlocks(html);
                         editor.replaceBlocks(editor.document, blocks);
                         console.log(`[Editor] Content loaded successfully`);
-                        updateWordCount();
                     } else {
                         editor.replaceBlocks(editor.document, []); // Empty page
-                        setWordCount({ words: 0, chars: 0, readingTime: 0 });
                     }
 
                     lastLoadedPageId.current = activePageId;
@@ -724,37 +702,6 @@ export function Editor({ id }: EditorProps) {
 
                         {/* Right: Mode Toggles + Add Page */}
                         <div className="flex items-center gap-2">
-                            {/* Word Count + Writing Vessel */}
-                            <div className="hidden sm:flex items-center gap-4 mr-2">
-                                <div className="flex items-center gap-3 text-xs text-gray-400 dark:text-gray-500 font-mono">
-                                    <span title="Words">{wordCount.words} words</span>
-                                    <span className="text-gray-200 dark:text-gray-700 font-normal">/</span>
-                                    <span className="text-gray-300 dark:text-gray-600">{wordGoal}</span>
-                                </div>
-                                {/* Vessel Container */}
-                                <div className="w-24 h-2 bg-gray-100 dark:bg-gray-800/50 rounded-full overflow-hidden relative border border-gray-50/50 dark:border-gray-700/30">
-                                    <motion.div 
-                                        initial={{ width: 0 }}
-                                        animate={{ width: `${Math.min(100, (wordCount.words / wordGoal) * 100)}%` }}
-                                        transition={{ type: "spring", stiffness: 50, damping: 20 }}
-                                        className={cn(
-                                            "h-full rounded-full transition-colors duration-500",
-                                            wordCount.words >= wordGoal ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]" : "bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.4)]"
-                                        )}
-                                    />
-                                    {/* Liquid Glow Effect */}
-                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
-                                </div>
-                            </div>
-                                {lastSavedAt && (
-                                    <>
-                                        <span className="text-gray-200 dark:text-gray-700">•</span>
-                                        <span title={lastSavedAt.toLocaleString()} className="text-gray-300 dark:text-gray-600">
-                                            Saved {formatDistanceToNow(lastSavedAt as Date, { addSuffix: true })}
-                                        </span>
-                                    </>
-                                )}
-                            </div>
 
                             {/* Focus Mode Toggle */}
                             <button
@@ -780,7 +727,8 @@ export function Editor({ id }: EditorProps) {
                             </button>
                     </div>
                 </div>
-            </main >
+            </div>
+        </main >
 
             {/* Delete Confirmation Modal */}
             <AnimatePresence>

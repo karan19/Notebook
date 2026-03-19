@@ -49,44 +49,44 @@ export function Atmosphere() {
       </div>
 
       {/* Dark Mode Blobs */}
-      <div className="absolute inset-0 bg-gray-950 hidden dark:block">
+      <div className="absolute inset-0 bg-[#02040a] hidden dark:block">
         <motion.div
           animate={{
-            x: [0, 120, 0],
-            y: [0, -80, 0],
-            opacity: [0.15, 0.25, 0.15],
-          }}
-          transition={{
-            duration: 22,
-            repeat: Infinity,
-            ease: "linear",
-          }}
-          className="absolute top-[-20%] left-[-10%] w-[70%] h-[70%] bg-blue-900/10 rounded-full blur-[150px]"
-        />
-        <motion.div
-          animate={{
-            x: [0, -100, 0],
-            y: [0, 150, 0],
+            x: [0, 80, 0],
+            y: [0, -40, 0],
             opacity: [0.1, 0.2, 0.1],
           }}
           transition={{
-            duration: 30,
+            duration: 25,
             repeat: Infinity,
             ease: "linear",
           }}
-          className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-indigo-900/10 rounded-full blur-[130px]"
+          className="absolute top-[-10%] left-[-5%] w-[60%] h-[60%] bg-indigo-500/5 rounded-full blur-[160px]"
         />
         <motion.div
           animate={{
-            scale: [1, 1.2, 1],
-            opacity: [0.05, 0.15, 0.05],
+            x: [0, -60, 0],
+            y: [0, 100, 0],
+            opacity: [0.08, 0.15, 0.08],
           }}
           transition={{
-            duration: 15,
+            duration: 35,
             repeat: Infinity,
             ease: "linear",
           }}
-          className="absolute top-[30%] left-[20%] w-[40%] h-[40%] bg-purple-900/5 rounded-full blur-[100px]"
+          className="absolute bottom-[10%] right-[0%] w-[50%] h-[50%] bg-blue-600/5 rounded-full blur-[140px]"
+        />
+        <motion.div
+          animate={{
+            scale: [1, 1.15, 1],
+            opacity: [0.04, 0.1, 0.04],
+          }}
+          transition={{
+            duration: 20,
+            repeat: Infinity,
+            ease: "linear",
+          }}
+          className="absolute top-[30%] left-[25%] w-[40%] h-[40%] bg-slate-800/20 rounded-full blur-[110px]"
         />
       </div>
       
