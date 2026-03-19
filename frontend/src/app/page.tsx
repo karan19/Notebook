@@ -70,7 +70,7 @@ const NotebookCard = memo(({ notebook, index, onDelete, onToggleFavorite, onTogg
                 ease: "easeOut"
             }}
             onClick={handleNavigate}
-            className="relative flex flex-col h-full bg-card/60 backdrop-blur-xl border border-border/50 rounded-2xl p-5 transition-all group cursor-pointer card-hover"
+            className="relative flex flex-col h-full bg-card/60 backdrop-blur-xl border border-border/50 rounded-2xl p-4 transition-all group cursor-pointer card-hover"
         >
             <div className="absolute top-4 right-4 z-10 flex items-center gap-1">
                 <Button
@@ -97,35 +97,35 @@ const NotebookCard = memo(({ notebook, index, onDelete, onToggleFavorite, onTogg
                 </Button>
             </div>
 
-            <div className="flex-1 flex flex-col gap-3">
+            <div className="flex-1 flex flex-col gap-2">
                 <div className="flex items-start justify-between">
-                    <div className="p-3 bg-muted/50 rounded-xl group-hover:bg-foreground group-hover:text-background dark:group-hover:bg-foreground dark:group-hover:text-background transition-all duration-500">
-                        <FileText className="h-6 w-6" />
+                    <div className="p-2 bg-muted/50 rounded-xl group-hover:bg-foreground group-hover:text-background dark:group-hover:bg-foreground dark:group-hover:text-background transition-all duration-500">
+                        <FileText className="h-5 w-5" />
                     </div>
                 </div>
 
-                <div className="space-y-1">
-                    <h3 className="font-bold text-gray-900 dark:text-white text-lg group-hover:text-black dark:group-hover:text-white transition-colors truncate pr-8">
+                <div className="space-y-0.5">
+                    <h3 className="font-bold text-gray-900 dark:text-white text-base group-hover:text-black dark:group-hover:text-white transition-colors truncate pr-8">
                         {notebook.title}
                     </h3>
-                    <div className="flex items-center gap-2 text-xs font-medium text-gray-400 dark:text-gray-500">
+                    <div className="flex items-center gap-2 text-[10px] font-medium text-gray-400 dark:text-gray-500">
                         <span>Edited {formatDistanceToNow(notebook.lastEditedAt)} ago</span>
                     </div>
                 </div>
 
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="mt-2 flex flex-wrap gap-2">
                     {notebook.pages && (
-                        <span className="px-2 py-1 bg-blue-50/50 dark:bg-blue-900/20 text-[10px] font-bold text-blue-500 rounded-md uppercase tracking-wider">
+                        <span className="px-2 py-0.5 bg-muted/50 text-[10px] font-bold text-muted-foreground rounded-md uppercase tracking-wider">
                             {notebook.pages.length} {notebook.pages.length === 1 ? 'page' : 'pages'}
                         </span>
                     )}
                 </div>
             </div>
 
-            <div className="mt-auto pt-4 flex justify-end opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
+            <div className="mt-auto pt-2 flex justify-end opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl hover:bg-white dark:hover:bg-accent transition-all border border-transparent hover:border-gray-100 dark:hover:border-border/30">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-white dark:hover:bg-accent transition-all border border-transparent hover:border-gray-100 dark:hover:border-border/30">
                             <MoreVertical className="h-4 w-4 text-gray-400" />
                         </Button>
                     </DropdownMenuTrigger>
@@ -422,7 +422,7 @@ export default function Dashboard() {
 
           {loading ? (
             // Skeleton Loading State
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {[...Array(8)].map((_, i) => (
                 <NotebookCardSkeleton key={i} />
               ))}
@@ -468,7 +468,7 @@ export default function Dashboard() {
               )}
             </motion.div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {filteredNotebooks.map((notebook, index) => (
                 <NotebookCard
                   key={notebook.id}
