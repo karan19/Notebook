@@ -30,6 +30,16 @@ export function Editor({ id }: EditorProps) {
     const [newTag, setNewTag] = useState("");
     const [pages, setPages] = useState<Page[]>([]);
     const [isLoaded, setIsLoaded] = useState(false);
+    const [pendingPageDeletions, setPendingPageDeletions] = useState<string[]>([]);
+    const pageDeletionTimeouts = useRef<{ [key: string]: NodeJS.Timeout }>({});
+
+    // Cleanup timeouts on unmount
+    useEffect(() => {
+        const timeouts = pageDeletionTimeouts.current;
+        return () => {
+            Object.values(timeouts).forEach(clearTimeout);
+        };
+    }, []);
     const [isContentLoading, setIsContentLoading] = useState(false);
 
     // activePageId is now derived from URL
@@ -292,14 +302,50 @@ export function Editor({ id }: EditorProps) {
 
     const confirmDeletePage = async () => {
         if (!activePageId) return;
-        await deletePage(id, activePageId);
-        const nb = await getNotebook(id);
-        if (nb) {
-            const sorted = [...(nb.pages || [])].sort((a, b) => a.order - b.order);
-            setPages(sorted);
-            setActivePageId(sorted[0].id); // Go to first page
+
+        const pageIdToDelete = activePageId;
+        const pageTitle = pages.find(p => p.id === pageIdToDelete)?.title || "Page";
+
+        // 1. Move to another page first
+        const remainingPages = pages.filter(p => p.id !== pageIdToDelete && !pendingPageDeletions.includes(p.id));
+        if (remainingPages.length > 0) {
+            setActivePageId(remainingPages[0].id);
         }
+
+        // 2. Add to pending
+        setPendingPageDeletions(prev => [...prev, pageIdToDelete]);
         setShowDeleteModal(false);
+
+        // 3. Set timeout
+        const timeout = setTimeout(async () => {
+            await deletePage(id, pageIdToDelete);
+            setPendingPageDeletions(prev => prev.filter(pid => pid !== pageIdToDelete));
+            delete pageDeletionTimeouts.current[pageIdToDelete];
+
+            // Refresh notebook to be sure
+            const nb = await getNotebook(id);
+            if (nb) {
+                const sorted = [...(nb.pages || [])].sort((a, b) => a.order - b.order);
+                setPages(sorted);
+            }
+        }, 5000);
+
+        pageDeletionTimeouts.current[pageIdToDelete] = timeout;
+
+        // 4. Show toast with Undo
+        toast.success(`${pageTitle} will be deleted`, {
+            duration: 5000,
+            action: {
+                label: "Undo",
+                onClick: () => {
+                    clearTimeout(pageDeletionTimeouts.current[pageIdToDelete]);
+                    delete pageDeletionTimeouts.current[pageIdToDelete];
+                    setPendingPageDeletions(prev => prev.filter(pid => pid !== pageIdToDelete));
+                    setActivePageId(pageIdToDelete);
+                    toast.success("Deletion cancelled");
+                }
+            }
+        });
     };
 
 
@@ -308,6 +354,8 @@ export function Editor({ id }: EditorProps) {
     }
 
     const activePageIndex = pages.findIndex(p => p.id === activePageId);
+    const visiblePages = pages.filter(p => !pendingPageDeletions.includes(p.id));
+    const visibleActivePageIndex = visiblePages.findIndex(p => p.id === activePageId);
 
 
 
@@ -342,12 +390,11 @@ export function Editor({ id }: EditorProps) {
                                 {/* Page content loading overlay */}
                                 <div className={cn(
                                     "absolute inset-0 z-40 content-overlay opacity-0",
-                                    isContentLoading && "opacity-100 active"
                                 )}>
                                     <ContentLoadingOverlay />
                                 </div>
                                 {/* Page Number & Save Status */}
-                                <div className="absolute top-6 right-6 flex items-center gap-3">
+                                <div className="absolute top-6 right-6 flex items-center gap-1 p-1 glass paper-shadow rounded-xl z-10 transition-all">
                                     {/* Style Button */}
                                     <button
                                         onClick={() => {
@@ -358,13 +405,13 @@ export function Editor({ id }: EditorProps) {
                                             updateNotebook(id, { paperStyle: nextStyle });
                                             toast.success(`Style: ${nextStyle.charAt(0).toUpperCase() + nextStyle.slice(1)}`);
                                         }}
-                                        className="p-1.5 text-gray-300 hover:text-gray-600 dark:hover:text-gray-200 transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
+                                        className="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all rounded-lg hover:bg-white dark:hover:bg-gray-700"
                                         title="Change Paper Style"
                                     >
-                                        {paperStyle === 'clean' && <File className="w-3.5 h-3.5" />}
-                                        {paperStyle === 'dots' && <MoreHorizontal className="w-3.5 h-3.5" />}
-                                        {paperStyle === 'grid' && <Grid3X3 className="w-3.5 h-3.5" />}
-                                        {paperStyle === 'lines' && <AlignJustify className="w-3.5 h-3.5" />}
+                                        {paperStyle === 'clean' && <File className="w-4 h-4" />}
+                                        {paperStyle === 'dots' && <MoreHorizontal className="w-4 h-4" />}
+                                        {paperStyle === 'grid' && <Grid3X3 className="w-4 h-4" />}
+                                        {paperStyle === 'lines' && <AlignJustify className="w-4 h-4" />}
                                     </button>
 
                                     {/* Pin Button */}
@@ -376,64 +423,69 @@ export function Editor({ id }: EditorProps) {
                                             toast.success(newVal ? "Pinned to top" : "Unpinned from top");
                                         }}
                                         className={cn(
-                                            "p-1.5 transition-colors rounded-md",
+                                            "p-2 transition-all rounded-lg",
                                             isPinned
-                                                ? "text-blue-500 bg-blue-50 dark:bg-blue-900/30"
-                                                : "text-gray-300 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+                                                ? "text-blue-500 bg-blue-50/50 dark:bg-blue-900/40"
+                                                : "text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-gray-700"
                                         )}
                                         title={isPinned ? "Unpin from top" : "Pin to top"}
                                     >
-                                        <Pin className={cn("w-3.5 h-3.5", isPinned && "fill-current")} />
+                                        <Pin className={cn("w-4 h-4", isPinned && "fill-current")} />
                                     </button>
 
                                     {/* Export Button */}
                                     <button
                                         onClick={handleExportMarkdown}
-                                        className="p-1.5 text-gray-300 hover:text-gray-600 dark:hover:text-gray-200 transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
+                                        className="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all rounded-lg hover:bg-white dark:hover:bg-gray-700"
                                         title="Export to Markdown"
                                     >
-                                        <Download className="w-3.5 h-3.5" />
+                                        <Download className="w-4 h-4" />
                                     </button>
 
                                     {/* Copy Button */}
                                     <button
                                         onClick={async () => {
-                                            try {
+                                            if (editor) {
                                                 const markdown = await editor.blocksToMarkdownLossy(editor.document);
-                                                await navigator.clipboard.writeText(markdown);
-                                                toast.success("Content copied to clipboard", { icon: '📋' });
-                                            } catch (e) {
-                                                toast.error("Failed to copy content");
+                                                navigator.clipboard.writeText(markdown);
+                                                toast.success("Copied to clipboard!");
                                             }
                                         }}
-                                        className="p-1.5 text-gray-300 hover:text-gray-600 dark:hover:text-gray-200 transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
-                                        title="Copy to Clipboard"
+                                        className="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all rounded-lg hover:bg-white dark:hover:bg-gray-700"
+                                        title="Copy as Markdown"
                                     >
-                                        <Copy className="w-3.5 h-3.5" />
+                                        <Copy className="w-4 h-4" />
                                     </button>
 
-                                    {/* Save Status Icons */}
-                                    <div className="flex items-center text-gray-300">
-                                        {saveStatus === 'saving' && (
-                                            <Loader2 className="w-3.5 h-3.5 animate-spin text-gray-400" />
-                                        )}
-                                        {saveStatus === 'saved' && (
-                                            <Check className="w-3.5 h-3.5 text-green-500" />
-                                        )}
-                                        {saveStatus === 'error' && (
-                                            <button onClick={handleRetrySave} title="Save failed. Click to retry.">
-                                                <AlertCircle className="w-3.5 h-3.5 text-red-500 hover:text-red-600" />
-                                            </button>
-                                        )}
-                                        {saveStatus === 'idle' && (
-                                            <Cloud className="w-3.5 h-3.5" />
-                                        )}
-                                    </div>
+                                    <div className="w-[1px] h-4 bg-gray-100 dark:bg-gray-800 mx-1" />
 
-                                    <div className="text-xs font-mono text-gray-300 select-none">
-                                        {activePageIndex + 1} / {pages.length}
+                                    <div className="flex items-center gap-2 px-2 h-8">
+                                        <motion.div
+                                            key={saveStatus}
+                                            initial={{ scale: 0.8, opacity: 0 }}
+                                            animate={{ scale: 1, opacity: 1 }}
+                                            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                                            className="flex items-center text-gray-400"
+                                        >
+                                            {saveStatus === 'saving' && <Loader2 className="w-4 h-4 animate-spin text-blue-500" />}
+                                            {saveStatus === 'saved' && <Check className="w-4 h-4 text-green-500" />}
+                                            {saveStatus === 'idle' && <Cloud className="w-4 h-4" />}
+                                            {saveStatus === 'error' && <AlertCircle className="w-4 h-4 text-red-500" />}
+                                        </motion.div>
+                                        <div className="text-[10px] font-mono text-gray-400 dark:text-gray-500 select-none bg-gray-50 dark:bg-gray-800 px-1.5 py-0.5 rounded uppercase tracking-tighter">
+                                            {visibleActivePageIndex + 1} / {visiblePages.length}
+                                        </div>
                                     </div>
                                 </div>
+
+                                {/* Custom Content Loading Overlay */}
+                                <div className={cn(
+                                    "absolute inset-0 z-40 content-overlay opacity-0",
+                                    isContentLoading && "opacity-100 active"
+                                )}>
+                                    <ContentLoadingOverlay />
+                                </div>
+
 
                                 {/* Header within Paper - REDUCED PADDING */}
                                 <div className="px-8 pt-6 pb-2 border-b border-gray-50/50 dark:border-gray-800">
@@ -441,7 +493,7 @@ export function Editor({ id }: EditorProps) {
                                         value={title}
                                         onChange={handleTitleChange}
                                         style={{ fontSize: "32px", height: "auto" }}
-                                        className="w-full font-bold tracking-tight text-gray-900 dark:text-white border-none outline-none focus:outline-none focus:ring-0 p-0 bg-transparent placeholder:text-gray-200 dark:placeholder:text-gray-600 leading-tight mb-2"
+                                        className="w-full font-bold tracking-tight text-gray-900 dark:text-white border-none outline-none focus:outline-none focus:ring-0 p-0 bg-transparent placeholder:text-gray-200 dark:placeholder:text-gray-600 leading-tight mb-2 focus-ring-premium rounded-sm"
                                         placeholder="Notebook Title"
                                     />
 
@@ -626,10 +678,10 @@ export function Editor({ id }: EditorProps) {
                 <div className="absolute bottom-0 w-full bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-t border-gray-200 dark:border-gray-800 z-50">
                     <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
                         {/* Left: Delete Page (only if > 1 page) */}
-                        {pages.length > 1 ? (
+                        {visiblePages.length > 1 ? (
                             <button
                                 onClick={handleDeletePage}
-                                className="text-gray-400 hover:text-red-500 transition-colors p-2 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-md"
+                                className="text-gray-400 hover:text-red-500 transition-colors p-2 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-md"
                                 title="Delete this page"
                             >
                                 <Trash2 className="w-4 h-4" />
@@ -640,19 +692,19 @@ export function Editor({ id }: EditorProps) {
                         <div className="flex items-center gap-4">
                             <button
                                 onClick={handlePrevPage}
-                                disabled={activePageIndex <= 0}
+                                disabled={visibleActivePageIndex <= 0}
                                 className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-gray-600 dark:text-gray-400"
                             >
                                 <ChevronLeft className="w-5 h-5" />
                             </button>
 
                             <span className="text-sm font-medium text-gray-500 dark:text-gray-400 select-none">
-                                Page {activePageIndex + 1} of {pages.length}
+                                Page {visibleActivePageIndex + 1} of {visiblePages.length}
                             </span>
 
                             <button
                                 onClick={handleNextPage}
-                                disabled={activePageIndex >= pages.length - 1}
+                                disabled={visibleActivePageIndex >= visiblePages.length - 1}
                                 className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-gray-600 dark:text-gray-400"
                             >
                                 <ChevronRight className="w-5 h-5" />

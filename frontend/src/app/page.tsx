@@ -8,7 +8,7 @@ import { FileText, MoreVertical, Trash2, ExternalLink, Search, Star, UserCircle,
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useEffect, useState, useCallback, useMemo, memo } from "react";
+import { useEffect, useState, useCallback, useMemo, memo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthenticator } from '@aws-amplify/ui-react';
 import { motion, AnimatePresence } from "motion/react";
@@ -162,9 +162,17 @@ export default function Dashboard() {
   const router = useRouter();
   const [searchFocused, setSearchFocused] = useState(false);
   const [isQuickSwitcherOpen, setIsQuickSwitcherOpen] = useState(false);
+  const [pendingDeletions, setPendingDeletions] = useState<Set<string>>(new Set());
+  const deletionTimeouts = useRef<Record<string, NodeJS.Timeout>>({});
 
   useEffect(() => {
     fetchNotebooks();
+    // Cleanup timeouts on unmount
+    return () => {
+      for (const id in deletionTimeouts.current) {
+        clearTimeout(deletionTimeouts.current[id]);
+      }
+    };
   }, [fetchNotebooks]);
 
   // Keyboard shortcuts
@@ -206,12 +214,47 @@ export default function Dashboard() {
   }, [addNotebook, fireConfetti, router]);
 
   const handleDelete = useCallback(async (notebookId: string, notebookTitle: string) => {
-    try {
-      await deleteNotebook(notebookId);
-      toast.success("Notebook deleted", { description: `"${notebookTitle}" has been removed.` });
-    } catch (e) {
-      toast.error("Failed to delete notebook");
-    }
+    // Immediate UI update
+    setPendingDeletions(prev => new Set(prev).add(notebookId));
+
+    const performDelete = async () => {
+      try {
+        await deleteNotebook(notebookId);
+        setPendingDeletions(prev => {
+          const next = new Set(prev);
+          next.delete(notebookId);
+          return next;
+        });
+        delete deletionTimeouts.current[notebookId];
+      } catch (e) {
+        toast.error("Failed to delete notebook");
+        setPendingDeletions(prev => {
+          const next = new Set(prev);
+          next.delete(notebookId);
+          return next;
+        });
+      }
+    };
+
+    const timeout = setTimeout(performDelete, 5000);
+    deletionTimeouts.current[notebookId] = timeout;
+
+    toast.success("Notebook deleted", {
+      description: `"${notebookTitle}" has been removed.`,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          clearTimeout(deletionTimeouts.current[notebookId]);
+          delete deletionTimeouts.current[notebookId];
+          setPendingDeletions(prev => {
+            const next = new Set(prev);
+            next.delete(notebookId);
+            return next;
+          });
+          toast.info("Deletion undone");
+        }
+      }
+    });
   }, [deleteNotebook]);
 
   const handleToggleFavorite = useCallback(async (notebookId: string, isFavorite: boolean) => {
@@ -239,6 +282,9 @@ export default function Dashboard() {
 
   const filteredNotebooks = useMemo(() => {
     let result = notebooks.filter(nb => {
+      // Filter out pending deletions
+      if (pendingDeletions.has(nb.id)) return false;
+
       const matchesSearch = nb.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (nb.snippet && nb.snippet.toLowerCase().includes(searchQuery.toLowerCase()));
 
@@ -269,14 +315,14 @@ export default function Dashboard() {
     });
 
     return result;
-  }, [notebooks, searchQuery, currentFilter, sortBy, sortOrder]);
+  }, [notebooks, searchQuery, currentFilter, sortBy, sortOrder, pendingDeletions]);
 
   return (
     <div className="flex h-screen bg-[#FDFDFD] dark:bg-gray-950">
       <Sidebar />
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Modern Navbar */}
-        <header className="h-20 border-b border-gray-100 dark:border-gray-800 flex items-center px-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md sticky top-0 z-10 w-full relative">
+        <header className="h-20 border-b border-gray-100 dark:border-gray-800 flex items-center px-10 glass sticky top-0 z-20 w-full relative">
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-xl px-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -286,8 +332,9 @@ export default function Dashboard() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => setSearchFocused(true)}
                 onBlur={() => setSearchFocused(false)}
-                className="pl-10 pr-16 bg-gray-50 dark:bg-gray-800 border-transparent focus:bg-white dark:focus:bg-gray-700 focus:border-gray-200 dark:focus:border-gray-600 transition-all rounded-xl h-10 shadow-none focus-visible:ring-0 dark:text-white dark:placeholder:text-gray-500"
+                className="pl-10 pr-16 bg-gray-50 dark:bg-gray-800 border-transparent focus:bg-white dark:focus:bg-gray-700 focus:border-gray-200 dark:focus:border-gray-600 focus-ring-premium transition-all rounded-xl h-10 shadow-none focus-visible:ring-0 dark:text-white dark:placeholder:text-gray-500"
               />
+
               {/* Keyboard shortcut hint */}
               <div className={cn(
                 "absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs text-gray-400 transition-opacity",

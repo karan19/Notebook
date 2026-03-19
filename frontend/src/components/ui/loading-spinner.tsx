@@ -136,18 +136,21 @@ export function ContentLoadingOverlay() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className="absolute inset-0 z-40 flex items-center justify-center bg-white/60 dark:bg-gray-900/60 backdrop-blur-[2px] rounded-sm"
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="absolute inset-0 z-40 flex items-center justify-center bg-white/40 dark:bg-black/20 backdrop-blur-md rounded-sm overflow-hidden"
         >
             <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="flex flex-col items-center gap-3"
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 200, damping: 25, delay: 0.05 }}
+                className="flex flex-col items-center gap-4"
             >
-                <LoadingSpinner size={28} className="text-gray-400 dark:text-gray-500" />
-                <span className="text-xs font-medium text-gray-400 dark:text-gray-500">
-                    Loading page…
+                <div className="relative">
+                    <LoadingSpinner size={32} className="text-blue-500/80 dark:text-blue-400/80" />
+                    <div className="absolute inset-0 blur-lg bg-blue-500/20 dark:bg-blue-400/10 rounded-full animate-pulse" />
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500 select-none">
+                    Loading Context
                 </span>
             </motion.div>
         </motion.div>

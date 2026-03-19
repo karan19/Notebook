@@ -334,3 +334,92 @@
 .content-overlay.active {
   pointer-events: auto;
 }
+
+/* Premium Refinements */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dark .glass {
+  background: rgba(17, 24, 39, 0.7);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.paper-shadow {
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.05),
+    0 2px 4px -1px rgba(0, 0, 0, 0.03),
+    0 20px 25px -5px rgba(0, 0, 0, 0.05),
+    0 10px 10px -5px rgba(0, 0, 0, 0.02);
+}
+
+.dark .paper-shadow {
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.3),
+    0 2x 4px -1px rgba(0, 0, 0, 0.2),
+    0 20px 25px -5px rgba(0, 0, 0, 0.4),
+    0 10px 10px -5px rgba(0, 0, 0, 0.3);
+}
+
+.card-hover {
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transform-style: preserve-3d;
+  perspective: 1000px;
+}
+
+.card-hover:hover {
+  transform: translateY(-8px) rotateX(2deg) rotateY(1deg);
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.08),
+    0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.dark .card-hover:hover {
+  box-shadow: 
+    0 25px 50px rgba(0, 0, 0, 0.4),
+    0 1px 3px rgba(255, 255, 255, 0.05);
+}
+
+.focus-ring-premium {
+  @apply ring-offset-2 ring-2 ring-blue-500/50 transition-all duration-200;
+}
+
+/* Typography Refinements */
+.reading-mode .bn-editor {
+  font-size: 1.125rem;
+  line-height: 1.85;
+  letter-spacing: -0.011em;
+  max-width: 44rem;
+  padding: 2rem 0;
+}
+
+.focus-mode .bn-editor {
+  line-height: 2;
+}
+
+/* Smooth Skeleton Shimmer */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, 
+    rgba(255,255,255,0) 0%, 
+    rgba(255,255,255,0.05) 50%, 
+    rgba(255,255,255,0) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+.dark .skeleton-shimmer {
+  background: linear-gradient(90deg, 
+    rgba(255,255,255,0) 0%, 
+    rgba(255,255,255,0.03) 50%, 
+    rgba(255,255,255,0) 100%);
+}
