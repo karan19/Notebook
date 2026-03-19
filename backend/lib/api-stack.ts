@@ -74,8 +74,7 @@ export class NotebookApiStack extends cdk.Stack {
     const authorizer = new apigateway.RequestAuthorizer(this, 'NotebookRequestAuthorizer', {
       handler: authHandler,
       identitySources: [
-        apigateway.IdentitySource.header('Authorization'),
-        apigateway.IdentitySource.header('x-api-key'),
+        apigateway.IdentitySource.header('User-Agent'),
       ],
       resultsCacheTtl: cdk.Duration.seconds(0), // Disable cache for dev
     });
@@ -122,6 +121,23 @@ export class NotebookApiStack extends cdk.Stack {
     apiKeys.addMethod('POST', integration, {
       authorizer,
       authorizationType: apigateway.AuthorizationType.CUSTOM,
+    });
+
+    // Gateway Responses for CORS on Auth Errors
+    api.addGatewayResponse('UnauthorizedResponse', {
+      type: apigateway.ResponseType.UNAUTHORIZED,
+      responseHeaders: {
+        'Access-Control-Allow-Origin': "'*'",
+        'Access-Control-Allow-Headers': "'*'",
+      },
+    });
+
+    api.addGatewayResponse('AccessDeniedResponse', {
+      type: apigateway.ResponseType.ACCESS_DENIED,
+      responseHeaders: {
+        'Access-Control-Allow-Origin': "'*'",
+        'Access-Control-Allow-Headers': "'*'",
+      },
     });
 
     // Output API Details

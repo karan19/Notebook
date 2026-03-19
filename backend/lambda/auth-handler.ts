@@ -16,8 +16,15 @@ const jwtVerifier = CognitoJwtVerifier.create({
 });
 
 export const handler = async (event: APIGatewayRequestAuthorizerEvent): Promise<APIGatewayAuthorizerResult> => {
+    console.log('Authorizer Event:', JSON.stringify({
+        path: event.path,
+        method: event.httpMethod,
+        headers: event.headers,
+        resource: event.resource
+    }, null, 2));
+
     const authHeader = event.headers?.['Authorization'] || event.headers?.['authorization'];
-    const apiKey = event.headers?.['x-api-key'] || event.headers?.['X-Api-Key'];
+    const apiKey = event.headers?.['x-api-key'] || event.headers?.['X-Api-Key'] || event.headers?.['x-api-key'.toLowerCase()];
 
     try {
         // 1. Check for Cognito JWT
@@ -50,7 +57,7 @@ export const handler = async (event: APIGatewayRequestAuthorizerEvent): Promise<
     }
 };
 
-const generatePolicy = (principalId: string, effect: string, resource: string, userId: string): APIGatewayAuthorizerResult => {
+const generatePolicy = (principalId: string, effect: 'Allow' | 'Deny', resource: string, userId: string): APIGatewayAuthorizerResult => {
     return {
         principalId,
         policyDocument: {
