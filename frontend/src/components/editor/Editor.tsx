@@ -372,7 +372,7 @@ export function Editor({ id }: EditorProps) {
                                 animate={{ opacity: 1 }}
                                 transition={{ duration: 0.2, ease: "easeOut" }}
                                 className={cn(
-                                    "bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl shadow-[0_0_50px_rgba(0,0,0,0.02)] dark:shadow-[0_0_50px_rgba(0,0,0,0.2)] border border-gray-100/50 dark:border-gray-800/10 rounded-sm min-h-[1100px] flex flex-col relative transition-all",
+                                    "bg-card/80 backdrop-blur-xl shadow-[0_0_50px_rgba(0,0,0,0.02)] dark:shadow-[0_0_50px_rgba(0,0,0,0.4)] border border-border/30 rounded-sm min-h-[1100px] flex flex-col relative transition-all",
                                     `paper-${paperStyle}`
                                 )}
                             >
@@ -461,7 +461,7 @@ export function Editor({ id }: EditorProps) {
                                             {saveStatus === 'idle' && <Cloud className="w-4 h-4" />}
                                             {saveStatus === 'error' && <AlertCircle className="w-4 h-4 text-red-500" />}
                                         </motion.div>
-                                        <div className="text-[10px] font-mono text-gray-400 dark:text-gray-500 select-none bg-gray-50 dark:bg-gray-800 px-1.5 py-0.5 rounded uppercase tracking-tighter">
+                                        <div className="text-[10px] font-mono text-muted-foreground select-none bg-muted/30 px-1.5 py-0.5 rounded uppercase tracking-tighter">
                                             {visibleActivePageIndex + 1} / {visiblePages.length}
                                         </div>
                                     </div>
@@ -500,7 +500,7 @@ export function Editor({ id }: EditorProps) {
                                             value={newTag}
                                             onChange={(e) => setNewTag(e.target.value)}
                                             onKeyDown={handleTagAdd}
-                                            className="text-[10px] font-bold text-gray-300 dark:text-gray-500 border-none outline-none focus:outline-none focus:ring-0 p-0 bg-transparent placeholder:text-gray-200 dark:placeholder:text-gray-600 w-24 uppercase tracking-wider"
+                                            className="text-[10px] font-bold text-muted-foreground border-none outline-none focus:outline-none focus:ring-0 p-0 bg-transparent placeholder:text-muted-foreground/30 w-24 uppercase tracking-wider"
                                             placeholder="+ Add tag"
                                         />
                                     </div>
@@ -664,7 +664,7 @@ export function Editor({ id }: EditorProps) {
                 </div>
 
                 {/* Pagination Control Bar (Bottom Sticky) */}
-                <div className="absolute bottom-0 w-full bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-t border-gray-200 dark:border-gray-800 z-50">
+                <div className="absolute bottom-0 w-full bg-background/80 backdrop-blur-md border-t border-border/40 z-50">
                     <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
                         {/* Left: Delete Page (only if > 1 page) */}
                         {visiblePages.length > 1 ? (

@@ -72,12 +72,12 @@ export const Sidebar = memo(() => {
         <motion.div
             animate={{ width: isCollapsed ? 80 : 256 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="h-full bg-white dark:bg-gray-900 border-r dark:border-gray-800 flex flex-col relative shadow-[1px_0_0_0_rgba(0,0,0,0.05)] dark:shadow-none"
+            className="h-full bg-sidebar border-r dark:border-sidebar-border flex flex-col relative shadow-[1px_0_0_0_rgba(0,0,0,0.05)] dark:shadow-none"
         >
             {/* Collapse Toggle Button */}
             <button
                 onClick={toggleCollapse}
-                className="absolute -right-3 top-10 w-6 h-6 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-900 dark:hover:text-white shadow-[0_2px_4px_rgba(0,0,0,0.1)] z-50 transition-colors"
+                className="absolute -right-3 top-10 w-6 h-6 bg-accent border dark:border-border/40 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-900 dark:hover:text-white shadow-[0_2px_4px_rgba(0,0,0,0.1)] z-50 transition-colors"
                 title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
             >
                 {isCollapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
@@ -143,8 +143,8 @@ export const Sidebar = memo(() => {
                                         "w-full flex items-center rounded-xl py-5 font-medium transition-all text-sm",
                                         isCollapsed ? "justify-center px-0" : "justify-start gap-3 px-3",
                                         currentFilter === item.filter
-                                            ? "bg-black dark:bg-white text-white dark:text-black shadow-lg shadow-black/10"
-                                            : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-800 dark:hover:text-gray-200"
+                                            ? "bg-foreground text-background shadow-lg shadow-black/10"
+                                            : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
                                     )}
                                     title={isCollapsed ? item.label : undefined}
                                 >
@@ -163,7 +163,7 @@ export const Sidebar = memo(() => {
                                         Recent
                                     </p>
                                 ) : (
-                                    <div className="h-px bg-gray-100 dark:bg-gray-800 my-4 mx-2" />
+                                    <div className="h-px bg-gray-100 dark:bg-sidebar-border/50 my-4 mx-2" />
                                 )}
                                 <div className="flex flex-col gap-0.5">
                                     {recentItems.map((nb) => nb && (
@@ -172,7 +172,7 @@ export const Sidebar = memo(() => {
                                             href={`/notebooks/${nb.id}`}
                                             onClick={() => addToRecent(nb.id)}
                                             className={cn(
-                                                "py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors truncate flex items-center",
+                                                "py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-sidebar-accent rounded-lg transition-colors truncate flex items-center",
                                                 isCollapsed ? "justify-center px-0" : "px-3"
                                             )}
                                             title={isCollapsed ? nb.title : undefined}
@@ -193,14 +193,14 @@ export const Sidebar = memo(() => {
                             <div className="mt-auto px-3 py-2">
                                 <div className="flex items-center gap-2 text-xs text-gray-400">
                                     <Command className="w-3 h-3" />
-                                    <span>Press <kbd className="px-1 bg-gray-100 dark:bg-gray-800 rounded text-[10px]">⌘P</kbd> to quick switch</span>
+                                    <span>Press <kbd className="px-1 bg-gray-100 dark:bg-muted/30 rounded text-[10px]">⌘P</kbd> to quick switch</span>
                                 </div>
                             </div>
                         )}
                     </div>
 
                     {/* Theme Toggle at bottom */}
-                    <div className={cn("border-t dark:border-gray-800 pt-4 px-4 flex flex-col gap-2 transition-all", isCollapsed && "px-3 items-center pb-4")}>
+                    <div className={cn("border-t dark:border-sidebar-border pt-4 px-4 flex flex-col gap-2 transition-all", isCollapsed && "px-3 items-center pb-4")}>
                         {!isCollapsed && (
                             <p className="px-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Preferences</p>
                         )}

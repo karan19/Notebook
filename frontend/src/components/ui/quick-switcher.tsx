@@ -130,9 +130,9 @@ export function QuickSwitcher({ isOpen, onClose }: QuickSwitcherProps) {
                         transition={{ duration: 0.2, ease: "easeOut" }}
                         className="fixed top-[15%] left-1/2 -translate-x-1/2 w-full max-w-2xl z-[201] px-4"
                     >
-                        <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-2xl rounded-2xl shadow-[0_0_80px_rgba(0,0,0,0.1)] dark:shadow-[0_0_80px_rgba(0,0,0,0.4)] border border-gray-200/50 dark:border-gray-800/50 overflow-hidden">
+                        <div className="bg-card/80 backdrop-blur-2xl rounded-2xl shadow-[0_0_80px_rgba(0,0,0,0.1)] dark:shadow-[0_0_80px_rgba(0,0,0,0.5)] border border-border/40 overflow-hidden">
                             {/* Search Input */}
-                            <div className="flex items-center gap-4 px-6 py-5 border-b border-gray-100/50 dark:border-gray-800/50">
+                            <div className="flex items-center gap-4 px-6 py-5 border-b border-gray-100/50 dark:border-border/30">
                                 <Search className="w-6 h-6 text-gray-400" />
                                 <input
                                     ref={inputRef}
@@ -146,7 +146,7 @@ export function QuickSwitcher({ isOpen, onClose }: QuickSwitcherProps) {
                                     className="flex-1 bg-transparent outline-none text-lg text-gray-900 dark:text-white placeholder:text-gray-400 font-medium"
                                 />
                                 <div className="flex items-center gap-1.5">
-                                     <kbd className="px-2 py-1 text-[10px] font-bold text-gray-400 bg-gray-100/50 dark:bg-gray-800/50 border border-gray-200/50 dark:border-gray-700/50 rounded-md uppercase tracking-wider">
+                                     <kbd className="px-2 py-1 text-[10px] font-bold text-muted-foreground/60 bg-muted/50 border border-border/30 rounded-md uppercase tracking-wider">
                                         esc
                                     </kbd>
                                 </div>
@@ -156,7 +156,7 @@ export function QuickSwitcher({ isOpen, onClose }: QuickSwitcherProps) {
                             <div className="max-h-[450px] overflow-y-auto py-3 px-2 custom-scrollbar">
                                 {filteredItems.length === 0 ? (
                                     <div className="flex flex-col items-center justify-center py-12 text-gray-400 gap-4">
-                                        <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-full">
+                                        <div className="p-4 bg-gray-50 dark:bg-muted/50 rounded-full">
                                             <Search className="w-8 h-8 opacity-20" />
                                         </div>
                                         <p className="text-sm font-medium">No results found for "{query}"</p>
@@ -178,13 +178,13 @@ export function QuickSwitcher({ isOpen, onClose }: QuickSwitcherProps) {
                                             className={cn(
                                                 "w-full flex items-center gap-4 px-4 py-3 text-left transition-all rounded-xl relative group",
                                                 index === selectedIndex
-                                                    ? "bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-lg scale-[1.02] z-10"
-                                                    : "hover:bg-gray-100 dark:hover:bg-gray-800/50 text-gray-600 dark:text-gray-300"
+                                                    ? "bg-foreground text-background shadow-lg scale-[1.02] z-10"
+                                                    : "hover:bg-accent/40 text-muted-foreground hover:text-foreground"
                                             )}
                                         >
                                             <div className={cn(
                                                 "p-2 rounded-lg transition-colors",
-                                                index === selectedIndex ? "bg-white/20 dark:bg-black/10" : "bg-gray-100 dark:bg-gray-800"
+                                                index === selectedIndex ? "bg-background/20 dark:bg-background/10" : "bg-muted/50"
                                             )}>
                                                 {item.type === 'action' ? item.icon : (
                                                     item.isRecent ? <Clock className="w-4 h-4" /> : <FileText className="w-4 h-4" />
@@ -199,7 +199,7 @@ export function QuickSwitcher({ isOpen, onClose }: QuickSwitcherProps) {
                                                     {item.shortcut && (
                                                         <kbd className={cn(
                                                             "text-[10px] font-mono px-1.5 py-0.5 rounded",
-                                                            index === selectedIndex ? "bg-white/20 text-white" : "bg-gray-100 dark:bg-gray-800 text-gray-400"
+                                                            index === selectedIndex ? "bg-background/20 text-background" : "bg-muted/50 text-muted-foreground"
                                                         )}>
                                                             {item.shortcut}
                                                         </kbd>
@@ -224,7 +224,7 @@ export function QuickSwitcher({ isOpen, onClose }: QuickSwitcherProps) {
                             </div>
  
                             {/* Footer Hint */}
-                            <div className="px-6 py-3 bg-gray-50/50 dark:bg-gray-800/20 border-t border-gray-100/50 dark:border-gray-800/50 flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                            <div className="px-6 py-3 bg-gray-50/50 dark:bg-muted/20 border-t border-gray-100/50 dark:border-border/30 flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-gray-400">
                                 <div className="flex items-center gap-6">
                                     <span className="flex items-center gap-1.5"><Keyboard className="w-3 h-3" /> navigate</span>
                                     <span className="flex items-center gap-1.5"><CommandIcon className="w-3 h-3" /> enter to open</span>

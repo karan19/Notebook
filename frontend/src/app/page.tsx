@@ -70,7 +70,7 @@ const NotebookCard = memo(({ notebook, index, onDelete, onToggleFavorite, onTogg
                 ease: "easeOut"
             }}
             onClick={handleNavigate}
-            className="relative flex flex-col h-full bg-white/70 dark:bg-gray-900/60 backdrop-blur-xl border border-gray-100/50 dark:border-gray-800/50 rounded-2xl p-6 transition-all group cursor-pointer card-hover"
+            className="relative flex flex-col h-full bg-card/60 backdrop-blur-xl border border-border/50 rounded-2xl p-6 transition-all group cursor-pointer card-hover"
         >
             <div className="absolute top-4 right-4 z-10 flex items-center gap-1">
                 <Button
@@ -99,7 +99,7 @@ const NotebookCard = memo(({ notebook, index, onDelete, onToggleFavorite, onTogg
 
             <div className="flex-1 flex flex-col gap-4">
                 <div className="flex items-start justify-between">
-                    <div className="p-3 bg-gray-50/50 dark:bg-gray-800/50 rounded-xl group-hover:bg-black dark:group-hover:bg-white group-hover:text-white dark:group-hover:text-black transition-all duration-500">
+                    <div className="p-3 bg-muted/50 rounded-xl group-hover:bg-foreground group-hover:text-background dark:group-hover:bg-foreground dark:group-hover:text-background transition-all duration-500">
                         <FileText className="h-6 w-6" />
                     </div>
                 </div>
@@ -125,11 +125,11 @@ const NotebookCard = memo(({ notebook, index, onDelete, onToggleFavorite, onTogg
             <div className="mt-auto pt-6 flex justify-end opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl hover:bg-white dark:hover:bg-gray-800 transition-all border border-transparent hover:border-gray-100 dark:hover:border-gray-700">
+                        <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl hover:bg-white dark:hover:bg-accent transition-all border border-transparent hover:border-gray-100 dark:hover:border-border/30">
                             <MoreVertical className="h-4 w-4 text-gray-400" />
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="rounded-xl border-gray-100 dark:border-gray-700 dark:bg-gray-900 glass shadow-2xl p-1 w-40">
+                    <DropdownMenuContent align="end" className="rounded-xl border-gray-100 dark:border-border dark:bg-card glass shadow-2xl p-1 w-40">
                         <DropdownMenuItem
                             className="gap-3 py-2.5 rounded-lg cursor-pointer font-medium dark:text-gray-200 dark:hover:bg-gray-800"
                         >
@@ -332,7 +332,7 @@ export default function Dashboard() {
       <Sidebar />
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Modern Navbar */}
-        <header className="h-20 border-b border-gray-100 dark:border-gray-800 flex items-center px-10 glass sticky top-0 z-20 w-full relative">
+        <header className="h-20 border-b border-gray-100 dark:border-border/30 flex items-center px-10 glass sticky top-0 z-20 w-full relative">
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-xl px-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -342,7 +342,7 @@ export default function Dashboard() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => setSearchFocused(true)}
                 onBlur={() => setSearchFocused(false)}
-                className="pl-10 pr-16 bg-gray-50 dark:bg-gray-800 border-transparent focus:bg-white dark:focus:bg-gray-700 focus:border-gray-200 dark:focus:border-gray-600 focus-ring-premium transition-all rounded-xl h-10 shadow-none focus-visible:ring-0 dark:text-white dark:placeholder:text-gray-500"
+                className="pl-10 pr-16 bg-gray-50 dark:bg-muted/30 border-transparent focus:bg-white dark:focus:bg-accent/40 focus:border-gray-200 dark:focus:border-border focus-ring-premium transition-all rounded-xl h-10 shadow-none focus-visible:ring-0 dark:text-white dark:placeholder:text-muted-foreground"
               />
 
               {/* Keyboard shortcut hint */}
@@ -432,7 +432,7 @@ export default function Dashboard() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.4 }}
-              className="flex flex-col items-center justify-center py-24 bg-white/40 dark:bg-gray-900/40 backdrop-blur-md rounded-3xl border-2 border-dashed border-gray-100/50 dark:border-gray-800/50"
+              className="flex flex-col items-center justify-center py-24 bg-card/40 backdrop-blur-md rounded-3xl border-2 border-dashed border-border/50"
             >
               {/* Custom Illustration */}
               <div className="relative w-32 h-32 mb-6">
