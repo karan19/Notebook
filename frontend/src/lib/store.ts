@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 import { get, post, patch, del } from 'aws-amplify/api';
 import { fetchAuthSession } from 'aws-amplify/auth';
 
@@ -73,383 +74,364 @@ const getAuthHeaders = async (): Promise<Record<string, string>> => {
 
 const API_NAME = 'NotebookApi';
 
-// Load preferences from localStorage
-const loadPreferences = () => {
-    if (typeof window === 'undefined') return { sortBy: 'date', sortOrder: 'desc', recentNotebooks: [] };
-    try {
-        const prefs = localStorage.getItem('notebook-preferences');
-        if (prefs) {
-            const parsed = JSON.parse(prefs);
-            return {
-                sortBy: parsed.sortBy || 'date',
-                sortOrder: parsed.sortOrder || 'desc',
-                recentNotebooks: parsed.recentNotebooks || []
-            };
-        }
-    } catch (e) {
-        console.error('Failed to load preferences', e);
-    }
-    return { sortBy: 'date', sortOrder: 'desc', recentNotebooks: [] };
-};
 
-const savedPrefs = loadPreferences();
+export const useNotebookStore = create<NotebookStore>()(
+    persist(
+        (set, getStore) => ({
+            notebooks: [],
+            loading: false,
+            currentFilter: 'all',
+            searchQuery: "",
+            sortBy: 'date',
+            sortOrder: 'desc',
+            recentNotebooks: [],
+            apiKeys: [],
 
-export const useNotebookStore = create<NotebookStore>((set, getStore) => ({
-    notebooks: [],
-    loading: false,
-    currentFilter: 'all',
-    searchQuery: "",
-    sortBy: savedPrefs.sortBy as 'date' | 'name' | 'favorites',
-    sortOrder: savedPrefs.sortOrder as 'asc' | 'desc',
-    recentNotebooks: savedPrefs.recentNotebooks as string[],
-    apiKeys: [],
+            setFilter: (filter) => set({ currentFilter: filter }),
+            setSearchQuery: (query) => set({ searchQuery: query }),
+            setSort: (sortBy, sortOrder) => {
+                set({ sortBy, sortOrder });
+            },
+            addToRecent: (id) => set((state) => {
+                const recent = [id, ...state.recentNotebooks.filter(r => r !== id)].slice(0, 5);
+                return { recentNotebooks: recent };
+            }),
 
-    setFilter: (filter) => set({ currentFilter: filter }),
-    setSearchQuery: (query) => set({ searchQuery: query }),
-    setSort: (sortBy, sortOrder) => {
-        set({ sortBy, sortOrder });
-        // Persist to localStorage
-        if (typeof window !== 'undefined') {
-            try {
-                const current = JSON.parse(localStorage.getItem('notebook-preferences') || '{}');
-                localStorage.setItem('notebook-preferences', JSON.stringify({ ...current, sortBy, sortOrder }));
-            } catch (e) { }
-        }
-    },
-    addToRecent: (id) => set((state) => {
-        const recent = [id, ...state.recentNotebooks.filter(r => r !== id)].slice(0, 5);
-        // Persist to localStorage
-        if (typeof window !== 'undefined') {
-            try {
-                const current = JSON.parse(localStorage.getItem('notebook-preferences') || '{}');
-                localStorage.setItem('notebook-preferences', JSON.stringify({ ...current, recentNotebooks: recent }));
-            } catch (e) { }
-        }
-        return { recentNotebooks: recent };
-    }),
-
-    fetchNotebooks: async () => {
-        set({ loading: true });
-        try {
-            const operation = get({
-                apiName: API_NAME,
-                path: '/notebooks',
-                options: { headers: await getAuthHeaders() }
-            });
-            const { body } = await operation.response;
-            const items = await body.json() as any[];
-            set({ notebooks: items || [], loading: false });
-        } catch (error: any) {
-            console.error("Error fetching notebooks:", error);
-            set({ loading: false });
-        }
-    },
-
-    addNotebook: async (title = "Untitled Document") => {
-        try {
-            const operation = post({
-                apiName: API_NAME,
-                path: '/notebooks',
-                options: {
-                    body: { title },
-                    headers: await getAuthHeaders()
+            fetchNotebooks: async () => {
+                set({ loading: true });
+                try {
+                    const operation = get({
+                        apiName: API_NAME,
+                        path: '/notebooks',
+                        options: { headers: await getAuthHeaders() }
+                    });
+                    const { body } = await operation.response;
+                    const items = await body.json() as any[];
+                    set({ notebooks: items || [], loading: false });
+                } catch (error: any) {
+                    console.error("Error fetching notebooks:", error);
+                    set({ loading: false });
                 }
-            });
-            const { body } = await operation.response;
-            const newNotebook = await body.json() as any;
-            set((state) => ({
-                notebooks: [newNotebook, ...state.notebooks],
-            }));
-            return newNotebook.id;
-        } catch (error) {
-            console.error("Error adding notebook:", error);
-            throw error;
-        }
-    },
+            },
 
-    updateNotebook: async (id, updates) => {
-        // Optimistic update
-        set((state) => ({
-            notebooks: state.notebooks.map((nb) =>
-                nb.id === id ? { ...nb, ...updates, lastEditedAt: Date.now() } : nb
-            ),
-        }));
-
-        try {
-            await patch({
-                apiName: API_NAME,
-                path: `/notebooks/${id}`,
-                options: {
-                    body: updates as any,
-                    headers: await getAuthHeaders()
+            addNotebook: async (title = "Untitled Document") => {
+                try {
+                    const operation = post({
+                        apiName: API_NAME,
+                        path: '/notebooks',
+                        options: {
+                            body: { title },
+                            headers: await getAuthHeaders()
+                        }
+                    });
+                    const { body } = await operation.response;
+                    const newNotebook = await body.json() as any;
+                    set((state) => ({
+                        notebooks: [newNotebook, ...state.notebooks],
+                    }));
+                    return newNotebook.id;
+                } catch (error) {
+                    console.error("Error adding notebook:", error);
+                    throw error;
                 }
-            });
-        } catch (error) {
-            console.error("Error updating notebook:", error);
-            // Revert on failure (could be improved)
-        }
-    },
+            },
 
-    deleteNotebook: async (id) => {
-        set((state) => ({
-            notebooks: state.notebooks.filter((nb) => nb.id !== id),
-        }));
+            updateNotebook: async (id, updates) => {
+                // Optimistic update
+                set((state) => ({
+                    notebooks: state.notebooks.map((nb) =>
+                        nb.id === id ? { ...nb, ...updates, lastEditedAt: Date.now() } : nb
+                    ),
+                }));
 
-        try {
-            await del({
-                apiName: API_NAME,
-                path: `/notebooks/${id}`,
-                options: { headers: await getAuthHeaders() }
-            });
-        } catch (error) {
-            console.error("Error deleting notebook:", error);
-        }
-    },
-
-    getNotebook: async (id) => {
-        const existing = getStore().notebooks.find((nb) => nb.id === id);
-        if (existing && existing.pages && existing.pages.length > 0) return existing;
-
-        try {
-            const operation = get({
-                apiName: API_NAME,
-                path: `/notebooks/${id}`,
-                options: { headers: await getAuthHeaders() }
-            });
-            const { body } = await operation.response;
-            const notebook = await body.json() as unknown as Notebook;
-
-            set((state) => ({
-                notebooks: [
-                    notebook,
-                    ...state.notebooks.filter((n) => n.id !== id)
-                ]
-            }));
-            return notebook;
-        } catch (e) {
-            console.error("Error loading notebook details", e);
-            return undefined;
-        }
-    },
-
-    saveContent: async (id, html, pageId) => {
-        try {
-            console.log(`[Store] Saving content for notebook ${id}, page ${pageId}`);
-
-            // 1. Get Upload URL
-            const urlOp = get({
-                apiName: API_NAME,
-                path: '/notebooks/urls/upload',
-                options: {
-                    queryParams: { id, pageId },
-                    headers: await getAuthHeaders()
+                try {
+                    await patch({
+                        apiName: API_NAME,
+                        path: `/notebooks/${id}`,
+                        options: {
+                            body: updates as any,
+                            headers: await getAuthHeaders()
+                        }
+                    });
+                } catch (error) {
+                    console.error("Error updating notebook:", error);
+                    // Revert on failure (could be improved)
                 }
-            });
-            const { body } = await urlOp.response;
-            const { url } = await body.json() as unknown as { url: string };
+            },
 
-            // 2. Upload to S3
-            await fetch(url, {
-                method: 'PUT',
-                body: html,
-                headers: { 'Content-Type': 'text/html' }
-            });
+            deleteNotebook: async (id) => {
+                set((state) => ({
+                    notebooks: state.notebooks.filter((nb) => nb.id !== id),
+                }));
 
-            // 3. Update snippet (first 100 chars)
-            const snippet = html.replace(/<[^>]*>?/gm, '').substring(0, 100);
-            await getStore().updateNotebook(id, { snippet });
+                try {
+                    await del({
+                        apiName: API_NAME,
+                        path: `/notebooks/${id}`,
+                        options: { headers: await getAuthHeaders() }
+                    });
+                } catch (error) {
+                    console.error("Error deleting notebook:", error);
+                }
+            },
 
-            // 4. Update local cache
-            set((state) => ({
-                notebooks: state.notebooks.map((nb) =>
-                    nb.id === id ? {
-                        ...nb,
-                        snippet,
-                        lastEditedAt: Date.now(),
-                        pages: nb.pages.map(p => p.id === pageId ? { ...p, content: html } : p)
-                    } : nb
-                ),
-            }));
+            getNotebook: async (id) => {
+                const existing = getStore().notebooks.find((nb) => nb.id === id);
+                if (existing && existing.pages && existing.pages.length > 0) return existing;
 
-        } catch (error) {
-            console.error("Error saving content:", error);
-            throw error;
-        }
-    },
+                try {
+                    const operation = get({
+                        apiName: API_NAME,
+                        path: `/notebooks/${id}`,
+                        options: { headers: await getAuthHeaders() }
+                    });
+                    const { body } = await operation.response;
+                    const notebook = await body.json() as unknown as Notebook;
 
-    loadContent: async (id, pageId) => {
-        try {
-            console.log(`[Store] Loading content for notebook ${id}, page ${pageId}`);
-            // Check cache first
-            const notebook = getStore().notebooks.find(nb => nb.id === id);
-            const page = notebook?.pages?.find(p => p.id === pageId);
-            if (page?.content) {
-                console.log(`[Store] Returning content from cache`);
-                return page.content;
+                    set((state) => ({
+                        notebooks: [
+                            notebook,
+                            ...state.notebooks.filter((n) => n.id !== id)
+                        ]
+                    }));
+                    return notebook;
+                } catch (e) {
+                    console.error("Error loading notebook details", e);
+                    return undefined;
+                }
+            },
+
+            saveContent: async (id, html, pageId) => {
+                try {
+                    console.log(`[Store] Saving content for notebook ${id}, page ${pageId}`);
+
+                    // 1. Get Upload URL
+                    const urlOp = get({
+                        apiName: API_NAME,
+                        path: '/notebooks/urls/upload',
+                        options: {
+                            queryParams: { id, pageId },
+                            headers: await getAuthHeaders()
+                        }
+                    });
+                    const { body } = await urlOp.response;
+                    const { url } = await body.json() as unknown as { url: string };
+
+                    // 2. Upload to S3
+                    await fetch(url, {
+                        method: 'PUT',
+                        body: html,
+                        headers: { 'Content-Type': 'text/html' }
+                    });
+
+                    // 3. Update snippet (first 100 chars)
+                    const snippet = html.replace(/<[^>]*>?/gm, '').substring(0, 100);
+                    await getStore().updateNotebook(id, { snippet });
+
+                    // 4. Update local cache
+                    set((state) => ({
+                        notebooks: state.notebooks.map((nb) =>
+                            nb.id === id ? {
+                                ...nb,
+                                snippet,
+                                lastEditedAt: Date.now(),
+                                pages: nb.pages.map(p => p.id === pageId ? { ...p, content: html } : p)
+                            } : nb
+                        ),
+                    }));
+
+                } catch (error) {
+                    console.error("Error saving content:", error);
+                    throw error;
+                }
+            },
+
+            loadContent: async (id, pageId) => {
+                try {
+                    console.log(`[Store] Loading content for notebook ${id}, page ${pageId}`);
+                    // Check cache first
+                    const notebook = getStore().notebooks.find(nb => nb.id === id);
+                    const page = notebook?.pages?.find(p => p.id === pageId);
+                    if (page?.content) {
+                        console.log(`[Store] Returning content from cache`);
+                        return page.content;
+                    }
+
+                    // 1. Get Download URL
+                    const urlOp = get({
+                        apiName: API_NAME,
+                        path: '/notebooks/urls/download',
+                        options: {
+                            queryParams: { id, pageId },
+                            headers: await getAuthHeaders()
+                        }
+                    });
+                    const { body } = await urlOp.response;
+                    const { url } = await body.json() as unknown as { url: string };
+
+                    // 2. Fetch from S3
+                    const res = await fetch(url);
+                    if (!res.ok) throw new Error("Failed to fetch content from S3");
+                    const html = await res.text();
+
+                    // 3. Cache in store
+                    set((state) => ({
+                        notebooks: state.notebooks.map((nb) =>
+                            nb.id === id ? {
+                                ...nb,
+                                pages: nb.pages.map(p => p.id === pageId ? { ...p, content: html } : p)
+                            } : nb
+                        ),
+                    }));
+
+                    return html;
+                } catch (error) {
+                    console.error("Error loading content:", error);
+                    return "";
+                }
+            },
+
+            toggleFavorite: async (id) => {
+                const notebook = getStore().notebooks.find((n) => n.id === id);
+                if (notebook) {
+                    const newVal = !notebook.isFavorite;
+                    await getStore().updateNotebook(id, { isFavorite: newVal });
+                }
+            },
+
+            togglePin: async (id) => {
+                const notebook = getStore().notebooks.find((n) => n.id === id);
+                if (notebook) {
+                    const newVal = !notebook.isPinned;
+                    await getStore().updateNotebook(id, { isPinned: newVal });
+                }
+            },
+
+            uploadAsset: async (file: File) => {
+                try {
+                    console.log(`[Store] Uploading asset: ${file.name}`);
+                    // For now, using a temporary mock URL or base64 could be an option if backend support is limited
+                    // But ideally we implementation asset upload similar to content upload
+                    return "https://via.placeholder.com/150";
+                } catch (e) {
+                    console.error("Asset upload failed", e);
+                    return "";
+                }
+            },
+
+            addPage: async (notebookId) => {
+                const notebook = getStore().notebooks.find(n => n.id === notebookId);
+                if (!notebook) throw new Error("Notebook not found");
+
+                const pageId = crypto.randomUUID();
+                const newPage: Page = {
+                    id: pageId,
+                    contentKey: `notes/${notebookId}/${pageId}.html`,
+                    order: notebook.pages ? notebook.pages.length : 0,
+                    title: `Page ${(notebook.pages?.length || 0) + 1}`
+                };
+
+                const currentPages = notebook.pages || [];
+                const updatedPages = [...currentPages, newPage];
+
+                set((state) => ({
+                    notebooks: state.notebooks.map(n => n.id === notebookId ? { ...n, pages: updatedPages } : n)
+                }));
+
+                await getStore().updateNotebook(notebookId, { pages: updatedPages });
+                return pageId;
+            },
+
+            deletePage: async (notebookId, pageId) => {
+                const notebook = getStore().notebooks.find(n => n.id === notebookId);
+                if (!notebook || !notebook.pages) return;
+
+                const updatedPages = notebook.pages.filter(p => p.id !== pageId);
+
+                set((state) => ({
+                    notebooks: state.notebooks.map(n => n.id === notebookId ? { ...n, pages: updatedPages } : n)
+                }));
+
+                await getStore().updateNotebook(notebookId, { pages: updatedPages });
+            },
+
+            duplicateNotebook: async (id) => {
+                const source = await getStore().getNotebook(id);
+                if (!source) throw new Error("Source notebook not found");
+
+                const newId = await getStore().addNotebook(`${source.title} (Copy)`);
+
+                // Load target to get its default page if any
+                const target = await getStore().getNotebook(newId);
+                if (!target) throw new Error("Failed to load target notebook");
+
+                for (let i = 0; i < source.pages.length; i++) {
+                    const sourcePage = source.pages[i];
+                    const content = await getStore().loadContent(id, sourcePage.id);
+
+                    let targetPageId: string;
+                    if (i === 0 && target.pages && target.pages.length > 0) {
+                        // Reuse the first page created by default
+                        targetPageId = target.pages[0].id;
+                    } else {
+                        targetPageId = await getStore().addPage(newId);
+                    }
+
+                    await getStore().saveContent(newId, content, targetPageId);
+
+                    // Optionally update page title if it exists
+                    if (sourcePage.title) {
+                        const currentPages = (getStore().notebooks.find(n => n.id === newId)?.pages || []);
+                        const updatedPages = currentPages.map(p => p.id === targetPageId ? { ...p, title: sourcePage.title } : p);
+                        await getStore().updateNotebook(newId, { pages: updatedPages });
+                    }
+                }
+
+                return newId;
+            },
+
+            fetchApiKeys: async () => {
+                try {
+                    const operation = get({
+                        apiName: API_NAME,
+                        path: '/api-keys',
+                        options: { headers: await getAuthHeaders() }
+                    });
+                    const { body } = await operation.response;
+                    const items = await body.json() as any[];
+                    set({ apiKeys: items || [] });
+                } catch (error) {
+                    console.error("Error fetching API keys:", error);
+                }
+            },
+
+            createApiKey: async () => {
+                try {
+                    const operation = post({
+                        apiName: API_NAME,
+                        path: '/api-keys',
+                        options: { headers: await getAuthHeaders() }
+                    });
+                    const { body } = await operation.response;
+                    const newKey = await body.json() as any;
+                    set((state) => ({ apiKeys: [newKey, ...state.apiKeys] }));
+                    return newKey.apiKey;
+                } catch (error) {
+                    console.error("Error creating API key:", error);
+                    throw error;
+                }
             }
-
-            // 1. Get Download URL
-            const urlOp = get({
-                apiName: API_NAME,
-                path: '/notebooks/urls/download',
-                options: {
-                    queryParams: { id, pageId },
-                    headers: await getAuthHeaders()
-                }
-            });
-            const { body } = await urlOp.response;
-            const { url } = await body.json() as unknown as { url: string };
-
-            // 2. Fetch from S3
-            const res = await fetch(url);
-            if (!res.ok) throw new Error("Failed to fetch content from S3");
-            const html = await res.text();
-
-            // 3. Cache in store
-            set((state) => ({
-                notebooks: state.notebooks.map((nb) =>
-                    nb.id === id ? {
-                        ...nb,
-                        pages: nb.pages.map(p => p.id === pageId ? { ...p, content: html } : p)
-                    } : nb
-                ),
-            }));
-
-            return html;
-        } catch (error) {
-            console.error("Error loading content:", error);
-            return "";
+        }),
+        {
+            name: 'notebook-storage',
+            storage: createJSONStorage(() => localStorage),
+            partialize: (state) => ({
+                notebooks: state.notebooks,
+                recentNotebooks: state.recentNotebooks,
+                sortBy: state.sortBy,
+                sortOrder: state.sortOrder,
+                apiKeys: state.apiKeys
+            }),
         }
-    },
-
-    toggleFavorite: async (id) => {
-        const notebook = getStore().notebooks.find((n) => n.id === id);
-        if (notebook) {
-            const newVal = !notebook.isFavorite;
-            await getStore().updateNotebook(id, { isFavorite: newVal });
-        }
-    },
-
-    togglePin: async (id) => {
-        const notebook = getStore().notebooks.find((n) => n.id === id);
-        if (notebook) {
-            const newVal = !notebook.isPinned;
-            await getStore().updateNotebook(id, { isPinned: newVal });
-        }
-    },
-
-    uploadAsset: async (file: File) => {
-        try {
-            console.log(`[Store] Uploading asset: ${file.name}`);
-            // For now, using a temporary mock URL or base64 could be an option if backend support is limited
-            // But ideally we implementation asset upload similar to content upload
-            return "https://via.placeholder.com/150";
-        } catch (e) {
-            console.error("Asset upload failed", e);
-            return "";
-        }
-    },
-
-    addPage: async (notebookId) => {
-        const notebook = getStore().notebooks.find(n => n.id === notebookId);
-        if (!notebook) throw new Error("Notebook not found");
-
-        const pageId = crypto.randomUUID();
-        const newPage: Page = {
-            id: pageId,
-            contentKey: `notes/${notebookId}/${pageId}.html`,
-            order: notebook.pages ? notebook.pages.length : 0,
-            title: `Page ${(notebook.pages?.length || 0) + 1}`
-        };
-
-        const currentPages = notebook.pages || [];
-        const updatedPages = [...currentPages, newPage];
-
-        set((state) => ({
-            notebooks: state.notebooks.map(n => n.id === notebookId ? { ...n, pages: updatedPages } : n)
-        }));
-
-        await getStore().updateNotebook(notebookId, { pages: updatedPages });
-        return pageId;
-    },
-
-    deletePage: async (notebookId, pageId) => {
-        const notebook = getStore().notebooks.find(n => n.id === notebookId);
-        if (!notebook || !notebook.pages) return;
-
-        const updatedPages = notebook.pages.filter(p => p.id !== pageId);
-
-        set((state) => ({
-            notebooks: state.notebooks.map(n => n.id === notebookId ? { ...n, pages: updatedPages } : n)
-        }));
-
-        await getStore().updateNotebook(notebookId, { pages: updatedPages });
-    },
-
-    duplicateNotebook: async (id) => {
-        const source = await getStore().getNotebook(id);
-        if (!source) throw new Error("Source notebook not found");
-
-        const newId = await getStore().addNotebook(`${source.title} (Copy)`);
-
-        // Load target to get its default page if any
-        const target = await getStore().getNotebook(newId);
-        if (!target) throw new Error("Failed to load target notebook");
-
-        for (let i = 0; i < source.pages.length; i++) {
-            const sourcePage = source.pages[i];
-            const content = await getStore().loadContent(id, sourcePage.id);
-
-            let targetPageId: string;
-            if (i === 0 && target.pages && target.pages.length > 0) {
-                // Reuse the first page created by default
-                targetPageId = target.pages[0].id;
-            } else {
-                targetPageId = await getStore().addPage(newId);
-            }
-
-            await getStore().saveContent(newId, content, targetPageId);
-
-            // Optionally update page title if it exists
-            if (sourcePage.title) {
-                const currentPages = (getStore().notebooks.find(n => n.id === newId)?.pages || []);
-                const updatedPages = currentPages.map(p => p.id === targetPageId ? { ...p, title: sourcePage.title } : p);
-                await getStore().updateNotebook(newId, { pages: updatedPages });
-            }
-        }
-
-        return newId;
-    },
- 
-    fetchApiKeys: async () => {
-        try {
-            const operation = get({
-                apiName: API_NAME,
-                path: '/api-keys',
-                options: { headers: await getAuthHeaders() }
-            });
-            const { body } = await operation.response;
-            const items = await body.json() as any[];
-            set({ apiKeys: items || [] });
-        } catch (error) {
-            console.error("Error fetching API keys:", error);
-        }
-    },
- 
-    createApiKey: async () => {
-        try {
-            const operation = post({
-                apiName: API_NAME,
-                path: '/api-keys',
-                options: { headers: await getAuthHeaders() }
-            });
-            const { body } = await operation.response;
-            const newKey = await body.json() as any;
-            set((state) => ({ apiKeys: [newKey, ...state.apiKeys] }));
-            return newKey.apiKey;
-        } catch (error) {
-            console.error("Error creating API key:", error);
-            throw error;
-        }
-    }
-}));
+    )
+);

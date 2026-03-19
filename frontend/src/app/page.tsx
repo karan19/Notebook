@@ -4,7 +4,7 @@ import { Sidebar } from "@/components/dashboard/Sidebar";
 import { useNotebookStore } from "@/lib/store";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
-import { FileText, MoreVertical, Trash2, ExternalLink, Search, Star, UserCircle, LogOut, Command, ArrowUpDown, ChevronDown, SortAsc, SortDesc, Pin, Copy } from "lucide-react";
+import { FileText, MoreVertical, Trash2, ExternalLink, Search, Star, UserCircle, LogOut, Command, ArrowUpDown, ChevronDown, SortAsc, SortDesc, Pin, Copy, RotateCw } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -356,6 +356,12 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center gap-4 ml-auto">
+            {loading && notebooks.length > 0 && (
+              <div className="flex items-center gap-2 text-[10px] font-medium text-muted-foreground animate-pulse mr-2">
+                <RotateCw className="h-3 w-3 animate-spin" />
+                <span className="hidden sm:inline uppercase tracking-wider">Syncing</span>
+              </div>
+            )}
             {/* Sort Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -420,7 +426,7 @@ export default function Dashboard() {
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-8">
 
-          {loading ? (
+          {loading && notebooks.length === 0 ? (
             // Skeleton Loading State
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {[...Array(8)].map((_, i) => (
