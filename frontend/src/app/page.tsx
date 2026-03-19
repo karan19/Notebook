@@ -70,7 +70,7 @@ const NotebookCard = memo(({ notebook, index, onDelete, onToggleFavorite, onTogg
                 ease: "easeOut"
             }}
             onClick={handleNavigate}
-            className="relative flex flex-col h-full bg-card/60 backdrop-blur-xl border border-border/50 rounded-2xl p-6 transition-all group cursor-pointer card-hover"
+            className="relative flex flex-col h-full bg-card/60 backdrop-blur-xl border border-border/50 rounded-2xl p-5 transition-all group cursor-pointer card-hover"
         >
             <div className="absolute top-4 right-4 z-10 flex items-center gap-1">
                 <Button
@@ -97,7 +97,7 @@ const NotebookCard = memo(({ notebook, index, onDelete, onToggleFavorite, onTogg
                 </Button>
             </div>
 
-            <div className="flex-1 flex flex-col gap-4">
+            <div className="flex-1 flex flex-col gap-3">
                 <div className="flex items-start justify-between">
                     <div className="p-3 bg-muted/50 rounded-xl group-hover:bg-foreground group-hover:text-background dark:group-hover:bg-foreground dark:group-hover:text-background transition-all duration-500">
                         <FileText className="h-6 w-6" />
@@ -113,7 +113,7 @@ const NotebookCard = memo(({ notebook, index, onDelete, onToggleFavorite, onTogg
                     </div>
                 </div>
 
-                <div className="mt-4 flex flex-wrap gap-2">
+                <div className="mt-3 flex flex-wrap gap-2">
                     {notebook.pages && (
                         <span className="px-2 py-1 bg-blue-50/50 dark:bg-blue-900/20 text-[10px] font-bold text-blue-500 rounded-md uppercase tracking-wider">
                             {notebook.pages.length} {notebook.pages.length === 1 ? 'page' : 'pages'}
@@ -122,7 +122,7 @@ const NotebookCard = memo(({ notebook, index, onDelete, onToggleFavorite, onTogg
                 </div>
             </div>
 
-            <div className="mt-auto pt-6 flex justify-end opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
+            <div className="mt-auto pt-4 flex justify-end opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl hover:bg-white dark:hover:bg-accent transition-all border border-transparent hover:border-gray-100 dark:hover:border-border/30">
@@ -418,11 +418,11 @@ export default function Dashboard() {
         </header>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-10">
+        <div className="flex-1 overflow-y-auto p-8">
 
           {loading ? (
             // Skeleton Loading State
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {[...Array(8)].map((_, i) => (
                 <NotebookCardSkeleton key={i} />
               ))}
@@ -468,7 +468,7 @@ export default function Dashboard() {
               )}
             </motion.div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filteredNotebooks.map((notebook, index) => (
                 <NotebookCard
                   key={notebook.id}
