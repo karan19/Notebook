@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, List, Plus, Trash2, X, Cloud, Check, Loader2, AlertCircle, Download, Pin, Copy, Grid3X3, MoreHorizontal, AlignJustify, File, Calendar, Link2, PenTool } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
 import { toast } from "@/components/ui/sonner";
@@ -212,9 +213,16 @@ export function Editor({ id }: EditorProps) {
         <div className="flex w-full h-full bg-[#f8f9fa] dark:bg-gray-950 text-gray-900 dark:text-gray-100 font-sans overflow-hidden relative">
             <main className="flex-1 flex flex-col h-full overflow-hidden relative">
                 <div className="flex-1 overflow-y-auto scroll-smooth pb-32">
-                    <div className="max-w-6xl mx-auto px-4 py-8 min-h-screen flex items-start justify-center">
-                        <div className="flex-1 min-w-0 max-w-6xl">
-                            
+                    <div className="max-w-7xl mx-auto px-4 py-8 min-h-screen flex items-start justify-center gap-0">
+                        {/* Left Spacer to keep content centered when margin opens */}
+                        <motion.div
+                            initial={false}
+                            animate={{ width: isMarginaliaOpen ? 240 : 0 }}
+                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                            className="hidden lg:block shrink-0"
+                        />
+
+                        <div className="flex-none w-full max-w-4xl">
                             <div className="mb-4 flex items-center justify-between">
                                 <Link href="/" className="group inline-flex items-center gap-2 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
                                     <ChevronLeft className="w-5 h-5" />
@@ -225,7 +233,7 @@ export function Editor({ id }: EditorProps) {
                                         variant="ghost"
                                         size="sm"
                                         onClick={() => setIsMarginaliaOpen(!isMarginaliaOpen)}
-                                        className={cn("gap-2 text-gray-500 hover:text-gray-900 transition-colors", isMarginaliaOpen && "text-blue-600 bg-blue-50 dark:bg-blue-900/30")}
+                                        className={cn("gap-2 text-gray-500 hover:text-gray-900 transition-colors", isMarginaliaOpen && "text-blue-600 bg-blue-50 dark:bg-blue-900/30 font-semibold")}
                                     >
                                         <PenTool className="w-4 h-4" />
                                         <span className="hidden sm:inline">Margins</span>
@@ -234,18 +242,18 @@ export function Editor({ id }: EditorProps) {
                             </div>
 
                             <div className={cn(
-                                "mx-auto w-full min-h-[1000px] shadow-2xl transition-all duration-300 relative flex overflow-hidden",
-                                isMarginaliaOpen ? "max-w-6xl" : "max-w-4xl",
+                                "mx-auto min-h-[1000px] shadow-2xl transition-all duration-300 relative flex overflow-hidden",
                                 paperStyle === 'clean' && "bg-white dark:bg-gray-800",
                                 "paper-shadow",
                                 `paper-${paperStyle}`
-                            )}>
+                            )} style={{ width: isMarginaliaOpen ? '1090px' : '850px' }}>
                                 <div className={cn("absolute inset-0 z-40 content-overlay opacity-0", isContentLoading && "opacity-100 active")}>
                                     <ContentLoadingOverlay />
                                 </div>
                                 
-                                <div className="flex-1 py-12 px-8 md:px-16 min-w-0 transition-all duration-300">
-                                    <div className="absolute top-6 right-6 flex items-center gap-3">
+                                {/* Fixed width content area to prevent reflow */}
+                                <div className="w-[850px] flex-none py-12 px-8 md:px-16 transition-all duration-300">
+                                    <div className="absolute top-6 right-auto left-auto flex items-center gap-3" style={{ right: isMarginaliaOpen ? '264px' : '24px' }}>
                                         <button onClick={() => {
                                             const styles: ('clean' | 'dots' | 'grid' | 'lines')[] = ['clean', 'dots', 'grid', 'lines'];
                                             const nextStyle = styles[(styles.indexOf(paperStyle) + 1) % styles.length];
@@ -298,6 +306,8 @@ export function Editor({ id }: EditorProps) {
                                 <SideMargin notes={sideNotes} onNotesChange={handleSideNotesChange} isVisible={isMarginaliaOpen} />
                             </div>
                         </div>
+                        
+                        {/* Right invisible spacer to balance the growth if needed? No, the SideMargin naturally does this because it's part of the flex flow now. */}
                     </div>
                 </div>
             </main>
