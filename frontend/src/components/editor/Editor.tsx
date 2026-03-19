@@ -61,6 +61,22 @@ export function Editor({ id }: EditorProps) {
 
     // Save Logic
     const saveTimeout = useRef<NodeJS.Timeout | null>(null);
+    const updateWordCount = () => {
+        if (!editor) return;
+        const text = editor.document
+            .map(block => {
+                if ('content' in block && Array.isArray(block.content)) {
+                    return (block.content as Array<{ text?: string }>).map(c => c.text || '').join('');
+                }
+                return '';
+            })
+            .join(' ');
+        const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+        const chars = text.length;
+        const readingTime = Math.ceil(words / 200); // ~200 wpm
+        setWordCount({ words, chars, readingTime });
+    };
+
     const handleContentChange = () => {
         if (!isInitializing.current && activePageId) {
             setSaveStatus('saving');
@@ -70,18 +86,7 @@ export function Editor({ id }: EditorProps) {
                 console.log(`[Editor] Auto-saving page ${activePageId}...`);
 
                 // Update word count inside debounce
-                const text = editor.document
-                    .map(block => {
-                        if ('content' in block && Array.isArray(block.content)) {
-                            return (block.content as Array<{ text?: string }>).map(c => c.text || '').join('');
-                        }
-                        return '';
-                    })
-                    .join(' ');
-                const words = text.trim() ? text.trim().split(/\s+/).length : 0;
-                const chars = text.length;
-                const readingTime = Math.ceil(words / 200); // ~200 wpm
-                setWordCount({ words, chars, readingTime });
+                updateWordCount();
 
                 try {
                     await saveContent(id, html, activePageId);
@@ -130,6 +135,7 @@ export function Editor({ id }: EditorProps) {
             setSaveStatus('saving');
             try {
                 const html = editor.blocksToFullHTML(editor.document);
+                updateWordCount();
                 await saveContent(id, html, activePageId);
                 setSaveStatus('saved');
                 setTimeout(() => setSaveStatus('idle'), 2000);
@@ -201,8 +207,10 @@ export function Editor({ id }: EditorProps) {
                         const blocks = await editor.tryParseHTMLToBlocks(html);
                         editor.replaceBlocks(editor.document, blocks);
                         console.log(`[Editor] Content loaded successfully`);
+                        updateWordCount();
                     } else {
                         editor.replaceBlocks(editor.document, []); // Empty page
+                        setWordCount({ words: 0, chars: 0, readingTime: 0 });
                     }
 
                     lastLoadedPageId.current = activePageId;
