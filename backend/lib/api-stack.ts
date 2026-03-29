@@ -107,10 +107,14 @@ export class NotebookApiStack extends cdk.Stack {
     const downloadUrl = urls.addResource('download');
     downloadUrl.addMethod('GET', integration, authProps);
 
-    // /assets/upload
+    // /assets
     const assets = api.root.addResource('assets');
     const assetUpload = assets.addResource('upload');
     assetUpload.addMethod('GET', integration, authProps);
+
+    const assetUrls = assets.addResource('urls');
+    const assetDownload = assetUrls.addResource('download');
+    assetDownload.addMethod('GET', integration, authProps);
 
     // /api-keys
     const apiKeys = api.root.addResource('api-keys');

@@ -19,6 +19,7 @@ export interface Notebook {
     isPinned?: boolean;
     pages: Page[];
     tags: string[];
+    version?: number;
     paperStyle?: 'clean' | 'dots' | 'grid' | 'lines';
     lastEditedAt: number;
     createdAt: number;
@@ -145,17 +146,34 @@ export const useNotebookStore = create<NotebookStore>()(
                 }));
 
                 try {
-                    await patch({
+                    const notebook = getStore().notebooks.find(n => n.id === id);
+                    const currentVersion = notebook?.version;
+
+                    const operation = patch({
                         apiName: API_NAME,
                         path: `/notebooks/${id}`,
                         options: {
-                            body: updates as any,
+                            body: { ...updates, version: currentVersion } as any,
                             headers: await getAuthHeaders()
                         }
                     });
-                } catch (error) {
+
+                    const { body } = await operation.response;
+                    const updatedNotebook = await body.json() as any;
+
+                    // Update state with server version
+                    set((state) => ({
+                        notebooks: state.notebooks.map((nb) =>
+                            nb.id === id ? { ...nb, version: updatedNotebook.version } : nb
+                        ),
+                    }));
+
+                } catch (error: any) {
                     console.error("Error updating notebook:", error);
-                    // Revert on failure (could be improved)
+                    if (error.response?.statusCode === 409) {
+                        // Version mismatch - reload
+                        await getStore().getNotebook(id);
+                    }
                 }
             },
 
@@ -217,14 +235,26 @@ export const useNotebookStore = create<NotebookStore>()(
                     const { body } = await urlOp.response;
                     const { url } = await body.json() as unknown as { url: string };
 
-                    // 2. Upload to S3
+                    // 2. Replace any signed URLs back with asset:// for stable storage
+                    // (This catches any links that were resolved during load or newly added)
+                    const stableHtml = html.replace(/https:\/\/[^"'\s>]+\?(?:X-Amz-Algorithm|AWSAccessKeyId)=[^"'\s>]+/g, (match) => {
+                        try {
+                            const url = new URL(match);
+                            const key = url.pathname.split('/').slice(2).join('/'); // assets/{userId}/{key}
+                            return `asset://${key}`;
+                        } catch (e) {
+                            return match;
+                        }
+                    });
+
+                    // 3. Upload to S3
                     await fetch(url, {
                         method: 'PUT',
-                        body: html,
+                        body: stableHtml,
                         headers: { 'Content-Type': 'text/html' }
                     });
 
-                    // 3. Update snippet (first 100 chars)
+                    // 4. Update snippet (first 100 chars)
                     const snippet = html.replace(/<[^>]*>?/gm, '').substring(0, 100);
                     await getStore().updateNotebook(id, { snippet });
 
@@ -272,9 +302,32 @@ export const useNotebookStore = create<NotebookStore>()(
                     // 2. Fetch from S3
                     const res = await fetch(url);
                     if (!res.ok) throw new Error("Failed to fetch content from S3");
-                    const html = await res.text();
+                    let html = await res.text();
 
-                    // 3. Cache in store
+                    // 3. Resolve asset:// stable links to fresh signed URLs
+                    const assetRegex = /asset:\/\/([^\s"'<>]+)/g;
+                    const matches = [...html.matchAll(assetRegex)];
+                    
+                    for (const match of matches) {
+                        const key = match[1];
+                        try {
+                            const signOp = get({
+                                apiName: API_NAME,
+                                path: '/assets/urls/download',
+                                options: {
+                                    queryParams: { key },
+                                    headers: await getAuthHeaders()
+                                }
+                            });
+                            const { body: signBody } = await signOp.response;
+                            const { url: signedUrl } = await signBody.json() as { url: string };
+                            html = html.replace(match[0], signedUrl);
+                        } catch (e) {
+                            console.error(`Failed to sign asset ${key}`, e);
+                        }
+                    }
+
+                    // 4. Cache in store
                     set((state) => ({
                         notebooks: state.notebooks.map((nb) =>
                             nb.id === id ? {
@@ -310,9 +363,31 @@ export const useNotebookStore = create<NotebookStore>()(
             uploadAsset: async (file: File) => {
                 try {
                     console.log(`[Store] Uploading asset: ${file.name}`);
-                    // For now, using a temporary mock URL or base64 could be an option if backend support is limited
-                    // But ideally we implementation asset upload similar to content upload
-                    return "https://via.placeholder.com/150";
+                    
+                    // 1. Get Upload URL from backend
+                    const urlOp = get({
+                        apiName: API_NAME,
+                        path: '/assets/upload',
+                        options: {
+                            queryParams: { 
+                                filename: file.name,
+                                contentType: file.type || 'application/octet-stream'
+                            },
+                            headers: await getAuthHeaders()
+                        }
+                    });
+                    const { body } = await urlOp.response;
+                    const { url, key } = await body.json() as { url: string, key: string };
+
+                    // 2. Upload to S3
+                    await fetch(url, {
+                        method: 'PUT',
+                        body: file,
+                        headers: { 'Content-Type': file.type }
+                    });
+
+                    // 3. Return stable URI
+                    return `asset://${key}`;
                 } catch (e) {
                     console.error("Asset upload failed", e);
                     return "";

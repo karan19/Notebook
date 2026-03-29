@@ -83,6 +83,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
                 isFavorite: false,
                 pages: [{ id: firstPageId, order: 0, title: 'Page 1' }],
                 tags: [],
+                version: 1, // INITIAL VERSION
                 createdAt: now,
                 lastEditedAt: now,
             };
@@ -127,13 +128,21 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         if (httpMethod === 'PATCH' && resource === '/notebooks/{id}') {
             const id = pathParameters?.id;
             const body = JSON.parse(event.body || '{}');
-            const now = Date.now();
+            const currentVersion = body.version; // CLIENT SENT VERSION
 
-            let updateExpression = 'set lastEditedAt = :now';
+            let updateExpression = 'set lastEditedAt = :now, version = if_not_exists(version, :start) + :inc';
             const expressionAttributeValues: any = {
                 ':now': now,
+                ':start': 0,
+                ':inc': 1,
                 ':userId': userId, // For Condition
             };
+
+            let conditionExpression = 'userId = :userId';
+            if (currentVersion !== undefined) {
+                conditionExpression += ' AND (attribute_not_exists(version) OR version = :currentVersion)';
+                expressionAttributeValues[':currentVersion'] = currentVersion;
+            }
 
             if (body.title) {
                 updateExpression += ', title = :title';
@@ -161,7 +170,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
                     TableName: TABLE_NAME,
                     Key: { id },
                     UpdateExpression: updateExpression,
-                    ConditionExpression: 'userId = :userId', // Security enforce
+                    ConditionExpression: conditionExpression,
                     ExpressionAttributeValues: expressionAttributeValues,
                     ReturnValues: 'ALL_NEW',
                 }));
@@ -173,7 +182,11 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
                 };
             } catch (err: any) {
                 if (err.name === 'ConditionalCheckFailedException') {
-                    return { statusCode: 403, headers, body: JSON.stringify({ message: 'Forbidden or Not Found' }) };
+                    return { 
+                        statusCode: 409, // CONFLICT
+                        headers, 
+                        body: JSON.stringify({ message: 'Conflict or Forbidden', code: 'VERSION_MISMATCH' }) 
+                    };
                 }
                 throw err;
             }
@@ -255,6 +268,24 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
                 ContentType: contentType,
             });
 
+            const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+            return { statusCode: 200, headers, body: JSON.stringify({ url, key }) };
+        }
+
+        // GET /assets/urls/download?key=...
+        if (httpMethod === 'GET' && resource === '/assets/urls/download') {
+            const key = queryStringParameters?.key;
+            if (!key) throw new Error('Key is required');
+
+            // Security: Ensure key starts with assets/{userId}/
+            if (!key.startsWith(`assets/${userId}/`)) {
+                return { statusCode: 403, headers, body: JSON.stringify({ message: 'Forbidden' }) };
+            }
+
+            const command = new GetObjectCommand({
+                Bucket: BUCKET_NAME,
+                Key: key,
+            });
             const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
             return { statusCode: 200, headers, body: JSON.stringify({ url }) };
         }
