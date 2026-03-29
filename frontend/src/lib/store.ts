@@ -386,8 +386,19 @@ export const useNotebookStore = create<NotebookStore>()(
                         headers: { 'Content-Type': file.type }
                     });
 
-                    // 3. Return stable URI
-                    return `asset://${key}`;
+                    // 3. Get a Signed GET URL for immediate rendering in the UI
+                    const signOp = get({
+                        apiName: API_NAME,
+                        path: '/assets/urls/download',
+                        options: {
+                            queryParams: { key },
+                            headers: await getAuthHeaders()
+                        }
+                    });
+                    const { body: signBody } = await signOp.response;
+                    const { url: signedUrl } = await signBody.json() as { url: string };
+
+                    return signedUrl;
                 } catch (e) {
                     console.error("Asset upload failed", e);
                     return "";
