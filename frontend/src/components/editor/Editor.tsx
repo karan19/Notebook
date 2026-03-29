@@ -25,24 +25,27 @@ export function Editor({ id }: EditorProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { getNotebook, fetchNotebooks, updateNotebook, loadContent, saveContent, addPage, deletePage, uploadAsset, togglePin, addToRecent } = useNotebookStore();
+    
+    // Core State
     const [title, setTitle] = useState("Untitled");
     const [tags, setTags] = useState<string[]>([]);
     const [newTag, setNewTag] = useState("");
     const [pages, setPages] = useState<Page[]>([]);
     const [isLoaded, setIsLoaded] = useState(false);
-    const [pendingPageDeletions, setPendingPageDeletions] = useState<string[]>([]);
-    const pageDeletionTimeouts = useRef<{ [key: string]: NodeJS.Timeout }>({});
-
-    // Cleanup timeouts on unmount
-    useEffect(() => {
-        const timeouts = pageDeletionTimeouts.current;
-        return () => {
-            Object.values(timeouts).forEach(clearTimeout);
-        };
-    }, []);
     const [isContentLoading, setIsContentLoading] = useState(false);
+    
+    // UI State
+    const [isPinned, setIsPinned] = useState(false);
+    const [paperStyle, setPaperStyle] = useState<'clean' | 'dots' | 'grid' | 'lines'>('clean');
+    const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [isTocOpen, setIsTocOpen] = useState(false);
+    const [isReadingMode, setIsReadingMode] = useState(false);
+    const [isFocusMode, setIsFocusMode] = useState(false);
+    const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+    const { resolvedTheme } = useTheme();
 
-    // activePageId is now derived from URL
+    // Derived State: activePageId is now driven from URL
     const activePageId = searchParams.get('page') || (pages.length > 0 ? pages[0].id : null);
 
     const setActivePageId = useCallback((pageId: string) => {
@@ -55,21 +58,10 @@ export function Editor({ id }: EditorProps) {
     const editor = useCreateBlockNote({
         uploadFile: uploadAsset,
     });
-    // ... rest of states ...
-    const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [isTocOpen, setIsTocOpen] = useState(false);
-    const { resolvedTheme } = useTheme();
-
-    // New feature states
-    const [isReadingMode, setIsReadingMode] = useState(false);
-    const [isFocusMode, setIsFocusMode] = useState(false);
-    const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
-    const [isPinned, setIsPinned] = useState(false);
-    const [paperStyle, setPaperStyle] = useState<'clean' | 'dots' | 'grid' | 'lines'>('clean');
 
     // Save Logic
     const saveTimeout = useRef<NodeJS.Timeout | null>(null);
+    const isInitializing = useRef(false);
 
     const handleContentChange = () => {
         if (!isInitializing.current && activePageId) {
@@ -196,7 +188,6 @@ export function Editor({ id }: EditorProps) {
 
     // Load content for active page
     const lastLoadedPageId = useRef<string | null>(null);
-    const isInitializing = useRef(false);
 
     useEffect(() => {
         async function load() {
@@ -300,46 +291,36 @@ export function Editor({ id }: EditorProps) {
         const pageIdToDelete = activePageId;
         const pageTitle = pages.find(p => p.id === pageIdToDelete)?.title || "Page";
 
-        // 1. Move to another page first
-        const remainingPages = pages.filter(p => p.id !== pageIdToDelete && !pendingPageDeletions.includes(p.id));
-        if (remainingPages.length > 0) {
-            setActivePageId(remainingPages[0].id);
-        }
+        try {
+            setShowDeleteModal(false);
+            setSaveStatus('saving');
 
-        // 2. Add to pending
-        setPendingPageDeletions(prev => [...prev, pageIdToDelete]);
-        setShowDeleteModal(false);
+            // 1. Move to another page first (UI immediate update)
+            const remainingPages = pages.filter(p => p.id !== pageIdToDelete);
+            if (remainingPages.length > 0) {
+                // Find next page or previous page
+                const currentIndex = pages.findIndex(p => p.id === pageIdToDelete);
+                const nextActiveId = remainingPages[currentIndex] ? remainingPages[currentIndex].id : remainingPages[remainingPages.length - 1].id;
+                setActivePageId(nextActiveId);
+            }
 
-        // 3. Set timeout
-        const timeout = setTimeout(async () => {
+            // 2. Perform HARD DELETE (S3 + DynamoDB)
             await deletePage(id, pageIdToDelete);
-            setPendingPageDeletions(prev => prev.filter(pid => pid !== pageIdToDelete));
-            delete pageDeletionTimeouts.current[pageIdToDelete];
+            
+            setSaveStatus('idle');
+            toast.success(`${pageTitle} deleted permanently`);
 
-            // Refresh notebook to be sure
+            // 3. Refresh notebook to ensure local state is perfect
             const nb = await getNotebook(id);
             if (nb) {
                 const sorted = [...(nb.pages || [])].sort((a, b) => a.order - b.order);
                 setPages(sorted);
             }
-        }, 5000);
-
-        pageDeletionTimeouts.current[pageIdToDelete] = timeout;
-
-        // 4. Show toast with Undo
-        toast.success(`${pageTitle} will be deleted`, {
-            duration: 5000,
-            action: {
-                label: "Undo",
-                onClick: () => {
-                    clearTimeout(pageDeletionTimeouts.current[pageIdToDelete]);
-                    delete pageDeletionTimeouts.current[pageIdToDelete];
-                    setPendingPageDeletions(prev => prev.filter(pid => pid !== pageIdToDelete));
-                    setActivePageId(pageIdToDelete);
-                    toast.success("Deletion cancelled");
-                }
-            }
-        });
+        } catch (e) {
+            console.error("Delete failed", e);
+            toast.error("Failed to delete page");
+            setSaveStatus('error');
+        }
     };
 
 
@@ -347,9 +328,7 @@ export function Editor({ id }: EditorProps) {
         return <EditorSkeleton />;
     }
 
-    const activePageIndex = pages.findIndex(p => p.id === activePageId);
-    const visiblePages = pages.filter(p => !pendingPageDeletions.includes(p.id));
-    const visibleActivePageIndex = visiblePages.findIndex(p => p.id === activePageId);
+    const visibleActivePageIndex = pages.findIndex(p => p.id === activePageId);
 
 
 
@@ -477,7 +456,7 @@ export function Editor({ id }: EditorProps) {
                                             {saveStatus === 'error' && <AlertCircle className="w-4 h-4 text-red-500" />}
                                         </motion.div>
                                         <div className="text-[10px] font-mono text-muted-foreground select-none bg-muted/30 px-1.5 py-0.5 rounded uppercase tracking-tighter">
-                                            {visibleActivePageIndex + 1} / {visiblePages.length}
+                                            {visibleActivePageIndex + 1} / {pages.length}
                                         </div>
                                     </div>
                                 </div>
@@ -682,7 +661,7 @@ export function Editor({ id }: EditorProps) {
                 <div className="absolute bottom-0 w-full bg-background/80 backdrop-blur-md border-t border-border/40 z-50">
                     <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
                         {/* Left: Delete Page (only if > 1 page) */}
-                        {visiblePages.length > 1 ? (
+                        {pages.length > 1 ? (
                             <button
                                 onClick={handleDeletePage}
                                 className="text-gray-400 hover:text-red-500 transition-colors p-2 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-md"
@@ -703,12 +682,12 @@ export function Editor({ id }: EditorProps) {
                             </button>
 
                             <span className="text-sm font-medium text-gray-500 dark:text-gray-400 select-none">
-                                Page {visibleActivePageIndex + 1} of {visiblePages.length}
+                                Page {visibleActivePageIndex + 1} of {pages.length}
                             </span>
 
                             <button
                                 onClick={handleNextPage}
-                                disabled={visibleActivePageIndex >= visiblePages.length - 1}
+                                disabled={visibleActivePageIndex >= pages.length - 1}
                                 className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-gray-600 dark:text-gray-400"
                             >
                                 <ChevronRight className="w-5 h-5" />
