@@ -517,6 +517,7 @@ export function Editor({ id }: EditorProps) {
                                         theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
                                         onChange={handleContentChange}
                                         slashMenu={false}
+                                        editable={!isReadingMode}
                                     >
                                         <SuggestionMenuController
                                             triggerCharacter={"/"}
