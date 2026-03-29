@@ -99,6 +99,11 @@ export class NotebookApiStack extends cdk.Stack {
     notebook.addMethod('PATCH', integration, authProps);
     notebook.addMethod('DELETE', integration, authProps);
 
+    // /notebooks/{id}/pages/{pageId}
+    const pages = notebook.addResource('pages');
+    const page = pages.addResource('{pageId}');
+    page.addMethod('DELETE', integration, authProps);
+
     // /notebooks/urls
     const urls = notebooks.addResource('urls');
     const uploadUrl = urls.addResource('upload');

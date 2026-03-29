@@ -56,7 +56,8 @@ This document provides a self-contained technical guide for building the **Noteb
 * **Page Management**:
   * **Navigation**: Horizontal `TabView` with `PageTabViewStyle` (strict paging).
   * **Add Page**: Header `+` button strictly for adding a blank page to the *current* notebook.
-  * **Delete/Rename**: Managed via the header `...` menu and tap-to-edit indicator.
+  * **Delete**: Use `DELETE /notebooks/{id}/pages/{pageId}`. This performs an atomic cleanup of both metadata and the S3 HTML file.
+  * **Auto-Titling**: The app should automatically update the `title` of a page by detecting the first **Heading 1 (`<h1>`)** inside the content. This keeps the Page list/Sidebar synchronized with the actual content without manual renaming.
 * **UI Elements**:
   * **Page Indicator**: Center-mounted in header (e.g., "Page 1 of 3").
   * **Paper Textures**: Editor background must support:
@@ -286,6 +287,12 @@ The app communicates with a REST API Gateway. All requests require an **idToken*
 
 * **Endpoint**: `PATCH /notebooks/{id}`
 * **Payload**: `{ "title": "New Title", "tags": ["work", "idea"], "isFavorite": true }`
+
+### 4. Page Deletion (Hard Delete)
+
+* **Endpoint**: `DELETE /notebooks/{id}/pages/{pageId}`
+* **Response**: `204 No Content`
+* **Effect**: Backend removes the page from the DynamoDB `pages` array AND deletes the `.html` file from S3 instantly.
 
 ---
 

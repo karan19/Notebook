@@ -9,7 +9,7 @@ import {
     UpdateCommand,
     DeleteCommand
 } from '@aws-sdk/lib-dynamodb';
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import * as crypto from 'crypto';
 
@@ -213,6 +213,51 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
                 throw err;
             }
         }
+        // DELETE /notebooks/{id}/pages/{pageId}
+        if (httpMethod === 'DELETE' && resource === '/notebooks/{id}/pages/{pageId}') {
+            const id = pathParameters?.id;
+            const pageId = pathParameters?.pageId;
+            if (!id || !pageId) throw new Error('Notebook ID and Page ID are required');
+
+            // 1. Get the notebook to verify ownership and find the page
+            const getResult = await docClient.send(new GetCommand({
+                TableName: TABLE_NAME,
+                Key: { id },
+            }));
+
+            if (!getResult.Item) {
+                return { statusCode: 404, headers, body: JSON.stringify({ message: 'Notebook not found' }) };
+            }
+            if (getResult.Item.userId !== userId) {
+                return { statusCode: 403, headers, body: JSON.stringify({ message: 'Forbidden' }) };
+            }
+
+            // 2. Delete the HTML file from S3
+            const s3Key = `notes/${userId}/${id}/${pageId}.html`;
+            await s3Client.send(new DeleteObjectCommand({
+                Bucket: BUCKET_NAME,
+                Key: s3Key,
+            }));
+
+            // 3. Remove the page from the DynamoDB list
+            const currentPages = getResult.Item.pages || [];
+            const updatedPages = currentPages.filter((p: any) => p.id !== pageId);
+
+            await docClient.send(new UpdateCommand({
+                TableName: TABLE_NAME,
+                Key: { id },
+                UpdateExpression: 'SET pages = :pages, lastEditedAt = :now, version = if_not_exists(version, :start) + :inc',
+                ExpressionAttributeValues: {
+                    ':pages': updatedPages,
+                    ':now': Date.now(),
+                    ':start': 0,
+                    ':inc': 1,
+                },
+            }));
+
+            return { statusCode: 204, headers, body: '' };
+        }
+
 
         // --- S3 URL ROUTES ---
 

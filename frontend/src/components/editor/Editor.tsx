@@ -84,6 +84,21 @@ export function Editor({ id }: EditorProps) {
                     await saveContent(id, html, activePageId);
                     setSaveStatus('saved');
                     setLastSavedAt(new Date());
+
+                    // Auto-Title Logic: Sync the page title with the first H1 in the document
+                    const firstBlock = editor.document[0];
+                    if (firstBlock && firstBlock.type === "heading" && (firstBlock.props as any).level === 1) {
+                        const content = (firstBlock.content as any);
+                        const text = Array.isArray(content) ? content.map(c => c.text).join("") : "";
+                        
+                        const currentPage = pages.find(p => p.id === activePageId);
+                        if (text && text !== currentPage?.title) {
+                            const updatedPages = pages.map(p => p.id === activePageId ? { ...p, title: text } : p);
+                            setPages(updatedPages);
+                            updateNotebook(id, { pages: updatedPages });
+                        }
+                    }
+
                     setTimeout(() => setSaveStatus('idle'), 2000);
                 } catch (e) {
                     console.error("Save failed", e);
@@ -367,7 +382,7 @@ export function Editor({ id }: EditorProps) {
                             </div>
 
                             {/* Paper Sheet View */}
-                            <motion.div 
+                            <motion.div
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 transition={{ duration: 0.2, ease: "easeOut" }}
@@ -517,7 +532,6 @@ export function Editor({ id }: EditorProps) {
                                         theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
                                         onChange={handleContentChange}
                                         slashMenu={false}
-                                        editable={!isReadingMode}
                                     >
                                         <SuggestionMenuController
                                             triggerCharacter={"/"}
@@ -726,10 +740,10 @@ export function Editor({ id }: EditorProps) {
                                 <Plus className="w-4 h-4" />
                                 <span>Add Page</span>
                             </button>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </main >
+            </main >
 
             {/* Delete Confirmation Modal */}
             <AnimatePresence>

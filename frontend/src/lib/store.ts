@@ -433,16 +433,28 @@ export const useNotebookStore = create<NotebookStore>()(
             },
 
             deletePage: async (notebookId, pageId) => {
-                const notebook = getStore().notebooks.find(n => n.id === notebookId);
-                if (!notebook || !notebook.pages) return;
+                try {
+                    // 1. Hard delete via the new API endpoint (cleans up S3)
+                    const delOp = del({
+                        apiName: API_NAME,
+                        path: `/notebooks/${notebookId}/pages/${pageId}`,
+                        options: {
+                            headers: await getAuthHeaders()
+                        }
+                    });
+                    await delOp.response;
 
-                const updatedPages = notebook.pages.filter(p => p.id !== pageId);
-
-                set((state) => ({
-                    notebooks: state.notebooks.map(n => n.id === notebookId ? { ...n, pages: updatedPages } : n)
-                }));
-
-                await getStore().updateNotebook(notebookId, { pages: updatedPages });
+                    // 2. Update local state
+                    set((state) => ({
+                        notebooks: state.notebooks.map(n => n.id === notebookId ? { 
+                            ...n, 
+                            pages: n.pages ? n.pages.filter(p => p.id !== pageId) : []
+                        } : n)
+                    }));
+                } catch (error) {
+                    console.error("Error deleting page:", error);
+                    throw error;
+                }
             },
 
             duplicateNotebook: async (id) => {
