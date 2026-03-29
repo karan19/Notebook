@@ -129,6 +129,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             const id = pathParameters?.id;
             const body = JSON.parse(event.body || '{}');
             const currentVersion = body.version; // CLIENT SENT VERSION
+            const now = Date.now();
 
             let updateExpression = 'set lastEditedAt = :now, version = if_not_exists(version, :start) + :inc';
             const expressionAttributeValues: any = {

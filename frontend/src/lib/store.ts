@@ -301,6 +301,10 @@ export const useNotebookStore = create<NotebookStore>()(
 
                     // 2. Fetch from S3
                     const res = await fetch(url);
+                    if (res.status === 404) {
+                        console.log(`[Store] Page not found in S3 (New Page), returning empty content`);
+                        return "";
+                    }
                     if (!res.ok) throw new Error("Failed to fetch content from S3");
                     let html = await res.text();
 
