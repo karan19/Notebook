@@ -75,7 +75,6 @@ export class NotebookApiStack extends cdk.Stack {
       handler: authHandler,
       identitySources: [
         apigateway.IdentitySource.header('Authorization'),
-        apigateway.IdentitySource.header('x-api-key'),
       ],
       resultsCacheTtl: cdk.Duration.seconds(0), // Disable cache for dev
     });
