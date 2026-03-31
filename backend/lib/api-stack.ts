@@ -74,7 +74,8 @@ export class NotebookApiStack extends cdk.Stack {
     const authorizer = new apigateway.RequestAuthorizer(this, 'NotebookRequestAuthorizer', {
       handler: authHandler,
       identitySources: [
-        apigateway.IdentitySource.header('User-Agent'),
+        apigateway.IdentitySource.header('Authorization'),
+        apigateway.IdentitySource.header('x-api-key'),
       ],
       resultsCacheTtl: cdk.Duration.seconds(0), // Disable cache for dev
     });

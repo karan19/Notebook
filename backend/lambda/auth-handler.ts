@@ -32,7 +32,15 @@ export const handler = async (event: APIGatewayRequestAuthorizerEvent): Promise<
             const token = authHeader.replace('Bearer ', '');
             const payload = await jwtVerifier.verify(token);
             console.log(`Validated Cognito token for user: ${payload.sub}`);
-            return generatePolicy(payload.sub as string, 'Allow', event.methodArn, payload.sub as string);
+            const resourceParts = event.methodArn.split(':');
+            const apiGatewayArnPart = resourceParts[5].split('/');
+            const apiId = apiGatewayArnPart[0];
+            const stage = apiGatewayArnPart[1];
+            
+            // Allow all methods and paths for this API/Stage
+            const wildcardResource = `arn:aws:execute-api:${resourceParts[3]}:${resourceParts[4]}:${apiId}/${stage}/*/*`;
+
+            return generatePolicy(payload.sub as string, 'Allow', wildcardResource, payload.sub as string);
         }
 
         // 2. Check for API Key
@@ -45,7 +53,14 @@ export const handler = async (event: APIGatewayRequestAuthorizerEvent): Promise<
             if (result.Item) {
                 const userId = result.Item.userId;
                 console.log(`Validated API key for user: ${userId}`);
-                return generatePolicy(userId, 'Allow', event.methodArn, userId);
+                
+                const resourceParts = event.methodArn.split(':');
+                const apiGatewayArnPart = resourceParts[5].split('/');
+                const apiId = apiGatewayArnPart[0];
+                const stage = apiGatewayArnPart[1];
+                const wildcardResource = `arn:aws:execute-api:${resourceParts[3]}:${resourceParts[4]}:${apiId}/${stage}/*/*`;
+
+                return generatePolicy(userId, 'Allow', wildcardResource, userId);
             }
         }
 

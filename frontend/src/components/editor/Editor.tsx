@@ -68,12 +68,12 @@ export function Editor({ id }: EditorProps) {
             setSaveStatus('saving');
             if (saveTimeout.current) clearTimeout(saveTimeout.current);
             saveTimeout.current = setTimeout(async () => {
-                const html = editor.blocksToFullHTML(editor.document);
-                console.log(`[Editor] Auto-saving page ${activePageId}...`);
+                const content = await editor.blocksToMarkdownLossy(editor.document);
+                console.log(`[Editor] Auto-saving page ${activePageId} as Markdown...`);
 
 
                 try {
-                    await saveContent(id, html, activePageId);
+                    await saveContent(id, content, activePageId);
                     setSaveStatus('saved');
                     setLastSavedAt(new Date());
 
@@ -133,8 +133,8 @@ export function Editor({ id }: EditorProps) {
         if (activePageId && editor) {
             setSaveStatus('saving');
             try {
-                const html = editor.blocksToFullHTML(editor.document);
-                await saveContent(id, html, activePageId);
+                const content = await editor.blocksToMarkdownLossy(editor.document);
+                await saveContent(id, content, activePageId);
                 setSaveStatus('saved');
                 setTimeout(() => setSaveStatus('idle'), 2000);
             } catch (e) {
@@ -199,11 +199,30 @@ export function Editor({ id }: EditorProps) {
 
                     console.log(`[Editor] Loading content for page: ${activePageId}`);
 
-                    const html = await loadContent(id, activePageId);
-                    if (html) {
-                        const blocks = await editor.tryParseHTMLToBlocks(html);
+                    const content = await loadContent(id, activePageId);
+                    if (content) {
+                        let blocks;
+                        if (content.trim().startsWith('[')) {
+                            // 1. JSON Native
+                            try {
+                                blocks = JSON.parse(content);
+                                console.log(`[Editor] JSON content loaded`);
+                            } catch (e) {
+                                console.warn("[Editor] Failed to parse JSON, falling back to Markdown");
+                                blocks = await editor.tryParseMarkdownToBlocks(content);
+                            }
+                        } else if (content.trim().startsWith('<!DOCTYPE html>') || content.includes('<div class=')) {
+                            // 2. Legacy HTML
+                            blocks = await editor.tryParseHTMLToBlocks(content);
+                            console.log(`[Editor] Legacy HTML content loaded`);
+                        } else {
+                            // 3. Markdown Native (Default)
+                            blocks = await editor.tryParseMarkdownToBlocks(content);
+                            console.log(`[Editor] Markdown content loaded`);
+                        }
+                        
                         editor.replaceBlocks(editor.document, blocks);
-                        console.log(`[Editor] Content loaded successfully`);
+                        console.log(`[Editor] Content rendered successfully`);
                     } else {
                         editor.replaceBlocks(editor.document, []); // Empty page
                     }

@@ -9,7 +9,7 @@ import {
     UpdateCommand,
     DeleteCommand
 } from '@aws-sdk/lib-dynamodb';
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import * as crypto from 'crypto';
 
@@ -206,17 +206,19 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
                 if (getResult.Item && getResult.Item.userId === userId) {
                     const pages = getResult.Item.pages || [];
                     
-                    // 2. Delete all page HTML files from S3
+                    // 2. Delete all page files from S3 (Try both .md and .html for cleanup)
                     for (const page of pages) {
-                        const s3Key = `notes/${userId}/${id}/${page.id}.html`;
-                        try {
-                            await s3Client.send(new DeleteObjectCommand({
-                                Bucket: BUCKET_NAME,
-                                Key: s3Key,
-                            }));
-                        } catch (s3Err) {
-                            console.error(`Failed to delete S3 object ${s3Key}:`, s3Err);
-                            // Continue even if one fails
+                        const extensions = ['.md', '.html'];
+                        for (const ext of extensions) {
+                            const s3Key = `notes/${userId}/${id}/${page.id}${ext}`;
+                            try {
+                                await s3Client.send(new DeleteObjectCommand({
+                                    Bucket: BUCKET_NAME,
+                                    Key: s3Key,
+                                }));
+                            } catch (s3Err) {
+                                // Silent fail if file doesn't exist
+                            }
                         }
                     }
                 }
@@ -257,12 +259,19 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
                 return { statusCode: 403, headers, body: JSON.stringify({ message: 'Forbidden' }) };
             }
 
-            // 2. Delete the HTML file from S3
-            const s3Key = `notes/${userId}/${id}/${pageId}.html`;
-            await s3Client.send(new DeleteObjectCommand({
-                Bucket: BUCKET_NAME,
-                Key: s3Key,
-            }));
+            // 2. Delete the file from S3 (Try both .md and .html)
+            const extensions = ['.md', '.html'];
+            for (const ext of extensions) {
+                const s3Key = `notes/${userId}/${id}/${pageId}${ext}`;
+                try {
+                    await s3Client.send(new DeleteObjectCommand({
+                        Bucket: BUCKET_NAME,
+                        Key: s3Key,
+                    }));
+                } catch (s3Err) {
+                    // Ignore non-existent files
+                }
+            }
 
             // 3. Remove the page from the DynamoDB list
             const currentPages = getResult.Item.pages || [];
@@ -293,11 +302,11 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             if (!id || !pageId) throw new Error('Notebook ID and Page ID are required');
 
             // Enforce user namespace in Key
-            const key = `notes/${userId}/${id}/${pageId}.html`;
+            const key = `notes/${userId}/${id}/${pageId}.md`;
             const command = new PutObjectCommand({
                 Bucket: BUCKET_NAME,
                 Key: key,
-                ContentType: 'text/html',
+                ContentType: 'text/markdown',
             });
             const url = await getSignedUrl(s3Client, command, { expiresIn: 300 });
 
@@ -311,7 +320,18 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             if (!id || !pageId) throw new Error('Notebook ID and Page ID are required');
 
             // Enforce user namespace in Key
-            const key = `notes/${userId}/${id}/${pageId}.html`;
+            // Dual lookup: check for .md first, fallback to .html
+            let key = `notes/${userId}/${id}/${pageId}.md`;
+            try {
+                await s3Client.send(new HeadObjectCommand({
+                    Bucket: BUCKET_NAME,
+                    Key: key,
+                }));
+            } catch (err) {
+                // Fallback to legacy extension
+                key = `notes/${userId}/${id}/${pageId}.html`;
+            }
+
             const command = new GetObjectCommand({
                 Bucket: BUCKET_NAME,
                 Key: key,
