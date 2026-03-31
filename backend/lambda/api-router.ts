@@ -197,10 +197,35 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         if (httpMethod === 'DELETE' && resource === '/notebooks/{id}') {
             const id = pathParameters?.id;
             try {
+                // 1. Get the notebook to find all pages for S3 cleanup
+                const getResult = await docClient.send(new GetCommand({
+                    TableName: TABLE_NAME,
+                    Key: { id },
+                }));
+
+                if (getResult.Item && getResult.Item.userId === userId) {
+                    const pages = getResult.Item.pages || [];
+                    
+                    // 2. Delete all page HTML files from S3
+                    for (const page of pages) {
+                        const s3Key = `notes/${userId}/${id}/${page.id}.html`;
+                        try {
+                            await s3Client.send(new DeleteObjectCommand({
+                                Bucket: BUCKET_NAME,
+                                Key: s3Key,
+                            }));
+                        } catch (s3Err) {
+                            console.error(`Failed to delete S3 object ${s3Key}:`, s3Err);
+                            // Continue even if one fails
+                        }
+                    }
+                }
+
+                // 3. Delete the DynamoDB record
                 await docClient.send(new DeleteCommand({
                     TableName: TABLE_NAME,
                     Key: { id },
-                    ConditionExpression: 'userId = :userId', // Security enforce
+                    ConditionExpression: 'userId = :userId',
                     ExpressionAttributeValues: {
                         ':userId': userId,
                     },

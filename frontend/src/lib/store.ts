@@ -57,6 +57,12 @@ interface NotebookStore {
     recentNotebooks: string[]; // IDs of recently opened notebooks
     addToRecent: (id: string) => void;
     duplicateNotebook: (id: string) => Promise<string>;
+    // Deletion Persistence
+    pendingDeletions: string[];
+    deletionTimeouts: Record<string, any>; // Store timeout IDs
+    deleteNotebookWithUndo: (id: string, onProgress: (msg: string) => void) => void;
+    undoDeletion: (id: string) => void;
+    setPendingDeletion: (id: string, isPending: boolean) => void;
     // API Keys
     apiKeys: ApiKey[];
     fetchApiKeys: () => Promise<void>;
@@ -86,6 +92,8 @@ export const useNotebookStore = create<NotebookStore>()(
             sortBy: 'date',
             sortOrder: 'desc',
             recentNotebooks: [],
+            pendingDeletions: [],
+            deletionTimeouts: {},
             apiKeys: [],
 
             setFilter: (filter) => set({ currentFilter: filter }),
@@ -93,6 +101,12 @@ export const useNotebookStore = create<NotebookStore>()(
             setSort: (sortBy, sortOrder) => {
                 set({ sortBy, sortOrder });
             },
+            setPendingDeletion: (id, isPending) => set((state) => {
+                const next = isPending 
+                    ? [...state.pendingDeletions, id]
+                    : state.pendingDeletions.filter(pid => pid !== id);
+                return { pendingDeletions: next };
+            }),
             addToRecent: (id) => set((state) => {
                 const recent = [id, ...state.recentNotebooks.filter(r => r !== id)].slice(0, 5);
                 return { recentNotebooks: recent };
@@ -178,18 +192,63 @@ export const useNotebookStore = create<NotebookStore>()(
             },
 
             deleteNotebook: async (id) => {
+                // Persistent removal from the visible list
                 set((state) => ({
                     notebooks: state.notebooks.filter((nb) => nb.id !== id),
+                    pendingDeletions: state.pendingDeletions.filter(pid => pid !== id)
                 }));
 
                 try {
-                    await del({
+                    const authHeaders = await getAuthHeaders();
+                    console.log(`[Store] Executing DELETE for notebook ${id}`);
+                    const operation = del({
                         apiName: API_NAME,
                         path: `/notebooks/${id}`,
-                        options: { headers: await getAuthHeaders() }
+                        options: { headers: authHeaders }
                     });
+                    await operation.response;
+                    console.log(`[Store] Successfully deleted notebook ${id}`);
                 } catch (error) {
                     console.error("Error deleting notebook:", error);
+                    // Add back if it failed? (Maybe too complex for now, but good for UX)
+                    getStore().fetchNotebooks(); 
+                }
+            },
+
+            deleteNotebookWithUndo: (id, onProgress) => {
+                const { deleteNotebook, setPendingDeletion, deletionTimeouts } = getStore();
+                
+                // 1. Mark as pending
+                setPendingDeletion(id, true);
+
+                // 2. Schedule the actual delete
+                const timeout = setTimeout(() => {
+                    deleteNotebook(id);
+                    // Cleanup timeout Ref
+                    set((state) => {
+                        const next = { ...state.deletionTimeouts };
+                        delete next[id];
+                        return { deletionTimeouts: next };
+                    });
+                }, 2500); // Slightly longer for safety
+
+                // 3. Store the timeout ID
+                set((state) => ({
+                    deletionTimeouts: { ...state.deletionTimeouts, [id]: timeout }
+                }));
+            },
+
+            undoDeletion: (id) => {
+                const { deletionTimeouts, setPendingDeletion } = getStore();
+                const timeout = deletionTimeouts[id];
+                if (timeout) {
+                    clearTimeout(timeout);
+                    setPendingDeletion(id, false);
+                    set((state) => {
+                        const next = { ...state.deletionTimeouts };
+                        delete next[id];
+                        return { deletionTimeouts: next };
+                    });
                 }
             },
 
@@ -532,7 +591,8 @@ export const useNotebookStore = create<NotebookStore>()(
                 recentNotebooks: state.recentNotebooks,
                 sortBy: state.sortBy,
                 sortOrder: state.sortOrder,
-                apiKeys: state.apiKeys
+                apiKeys: state.apiKeys,
+                pendingDeletions: state.pendingDeletions
             }),
         }
     )

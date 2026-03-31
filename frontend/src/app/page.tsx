@@ -125,7 +125,12 @@ const NotebookCard = memo(({ notebook, index, onDelete, onToggleFavorite, onTogg
             <div className="mt-auto pt-2 flex justify-end opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-white dark:hover:bg-accent transition-all border border-transparent hover:border-gray-100 dark:hover:border-border/30">
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                            className="h-8 w-8 rounded-lg hover:bg-white dark:hover:bg-accent transition-all border border-transparent hover:border-gray-100 dark:hover:border-border/30"
+                        >
                             <MoreVertical className="h-4 w-4 text-gray-400" />
                         </Button>
                     </DropdownMenuTrigger>
@@ -153,7 +158,7 @@ const NotebookCard = memo(({ notebook, index, onDelete, onToggleFavorite, onTogg
 
                         <DropdownMenuItem
                             className="gap-3 py-2.5 rounded-lg cursor-pointer text-destructive focus:text-destructive font-medium"
-                            onClick={(e) => { e.stopPropagation(); onDelete(notebook.id, notebook.title); }}
+                            onSelect={(e) => { e.preventDefault(); onDelete(notebook.id, notebook.title); }}
                         >
                             <Trash2 className="h-4 w-4" /> Delete
                         </DropdownMenuItem>
@@ -167,22 +172,14 @@ const NotebookCard = memo(({ notebook, index, onDelete, onToggleFavorite, onTogg
 NotebookCard.displayName = 'NotebookCard';
 
 export default function Dashboard() {
-  const { notebooks, deleteNotebook, fetchNotebooks, addNotebook, loading, searchQuery, setSearchQuery, currentFilter, toggleFavorite, togglePin, duplicateNotebook, sortBy, sortOrder, setSort, addToRecent } = useNotebookStore();
+  const { notebooks, deleteNotebook, fetchNotebooks, addNotebook, loading, searchQuery, setSearchQuery, currentFilter, toggleFavorite, togglePin, duplicateNotebook, sortBy, sortOrder, setSort, addToRecent, pendingDeletions, setPendingDeletion, deleteNotebookWithUndo, undoDeletion } = useNotebookStore();
   const { user, signOut } = useAuthenticator();
   const router = useRouter();
   const [searchFocused, setSearchFocused] = useState(false);
   const [isQuickSwitcherOpen, setIsQuickSwitcherOpen] = useState(false);
-  const [pendingDeletions, setPendingDeletions] = useState<Set<string>>(new Set());
-  const deletionTimeouts = useRef<Record<string, NodeJS.Timeout>>({});
 
   useEffect(() => {
     fetchNotebooks();
-    // Cleanup timeouts on unmount
-    return () => {
-      for (const id in deletionTimeouts.current) {
-        clearTimeout(deletionTimeouts.current[id]);
-      }
-    };
   }, [fetchNotebooks]);
 
   // Keyboard shortcuts
@@ -223,49 +220,19 @@ export default function Dashboard() {
     }
   }, [addNotebook, fireConfetti, router]);
 
-  const handleDelete = useCallback(async (notebookId: string, notebookTitle: string) => {
-    // Immediate UI update
-    setPendingDeletions(prev => new Set(prev).add(notebookId));
-
-    const performDelete = async () => {
-      try {
-        await deleteNotebook(notebookId);
-        setPendingDeletions(prev => {
-          const next = new Set(prev);
-          next.delete(notebookId);
-          return next;
-        });
-        delete deletionTimeouts.current[notebookId];
-      } catch (e) {
-        toast.error("Failed to delete notebook");
-        setPendingDeletions(prev => {
-          const next = new Set(prev);
-          next.delete(notebookId);
-          return next;
-        });
-      }
-    };
-
-    const timeout = setTimeout(performDelete, 5000);
-    deletionTimeouts.current[notebookId] = timeout;
+  const handleDelete = useCallback((notebookId: string, notebookTitle: string) => {
+    deleteNotebookWithUndo(notebookId, (msg) => console.log(msg));
 
     toast.success("Notebook deleted", {
       description: `"${notebookTitle}" has been removed.`,
       action: {
         label: "Undo",
         onClick: () => {
-          clearTimeout(deletionTimeouts.current[notebookId]);
-          delete deletionTimeouts.current[notebookId];
-          setPendingDeletions(prev => {
-            const next = new Set(prev);
-            next.delete(notebookId);
-            return next;
-          });
-          toast.info("Deletion undone");
+          undoDeletion(notebookId);
         }
       }
     });
-  }, [deleteNotebook]);
+  }, [deleteNotebookWithUndo, undoDeletion]);
 
   const handleToggleFavorite = useCallback(async (notebookId: string, isFavorite: boolean) => {
     await toggleFavorite(notebookId);
@@ -293,7 +260,7 @@ export default function Dashboard() {
   const filteredNotebooks = useMemo(() => {
     let result = notebooks.filter(nb => {
       // Filter out pending deletions
-      if (pendingDeletions.has(nb.id)) return false;
+      if (pendingDeletions.includes(nb.id)) return false;
 
       const matchesSearch = nb.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (nb.snippet && nb.snippet.toLowerCase().includes(searchQuery.toLowerCase()));
