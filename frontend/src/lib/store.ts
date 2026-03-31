@@ -80,7 +80,7 @@ const getAuthHeaders = async (): Promise<Record<string, string>> => {
 };
 
 const API_NAME = 'NotebookApi';
-
+const updateQueue: Record<string, Promise<any>> = {};
 
 export const useNotebookStore = create<NotebookStore>()(
     persist(
@@ -152,43 +152,68 @@ export const useNotebookStore = create<NotebookStore>()(
             },
 
             updateNotebook: async (id, updates) => {
-                // Optimistic update
+                // 1. Optimistic Update (Immediate UI response)
                 set((state) => ({
                     notebooks: state.notebooks.map((nb) =>
                         nb.id === id ? { ...nb, ...updates, lastEditedAt: Date.now() } : nb
                     ),
                 }));
 
-                try {
-                    const notebook = getStore().notebooks.find(n => n.id === id);
-                    const currentVersion = notebook?.version;
+                // 2. Queue the Backend Request
+                // We use a per-notebook queue to ensure updates are sequential and versions stay in sync
+                const queue = updateQueue[id] || Promise.resolve();
+                updateQueue[id] = queue.then(async () => {
+                    let retryCount = 0;
+                    const maxRetries = 1;
 
-                    const operation = patch({
-                        apiName: API_NAME,
-                        path: `/notebooks/${id}`,
-                        options: {
-                            body: { ...updates, version: currentVersion } as any,
-                            headers: await getAuthHeaders()
+                    while (retryCount <= maxRetries) {
+                        try {
+                            const notebook = getStore().notebooks.find(n => n.id === id);
+                            const currentVersion = notebook?.version;
+
+                            const operation = patch({
+                                apiName: API_NAME,
+                                path: `/notebooks/${id}`,
+                                options: {
+                                    body: { ...updates, version: currentVersion } as any,
+                                    headers: await getAuthHeaders()
+                                }
+                            });
+
+                            const { body } = await operation.response;
+                            const updatedNotebook = await body.json() as any;
+
+                            // Update state with the definitive server version
+                            set((state) => ({
+                                notebooks: state.notebooks.map((nb) =>
+                                    nb.id === id ? { ...nb, version: updatedNotebook.version } : nb
+                                ),
+                            }));
+                            return; // Success
+
+                        } catch (error: any) {
+                            console.error(`[Store] Error updating notebook ${id}:`, error);
+                            
+                            // Check for 409 Conflict
+                            const isConflict = error.response?.statusCode === 409 || 
+                                             error.name === 'ConflictException' ||
+                                             (error.toString && error.toString().includes('409'));
+
+                            if (isConflict && retryCount < maxRetries) {
+                                console.log(`[Store] Version mismatch for ${id}, reloading and retrying...`);
+                                await getStore().getNotebook(id); // Force reload fresh version
+                                retryCount++;
+                                continue; // Retry the loop
+                            }
+                            throw error; // Give up after retries or on other errors
                         }
-                    });
-
-                    const { body } = await operation.response;
-                    const updatedNotebook = await body.json() as any;
-
-                    // Update state with server version
-                    set((state) => ({
-                        notebooks: state.notebooks.map((nb) =>
-                            nb.id === id ? { ...nb, version: updatedNotebook.version } : nb
-                        ),
-                    }));
-
-                } catch (error: any) {
-                    console.error("Error updating notebook:", error);
-                    if (error.response?.statusCode === 409) {
-                        // Version mismatch - reload
-                        await getStore().getNotebook(id);
                     }
-                }
+                }).catch((err: any) => {
+                    console.error(`[Store] Sequential update failed for ${id}:`, err);
+                });
+
+                // Wait for the queue to resolve so the caller knows it's finished
+                await updateQueue[id];
             },
 
             deleteNotebook: async (id) => {
