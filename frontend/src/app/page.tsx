@@ -158,7 +158,7 @@ const NotebookCard = memo(({ notebook, index, onDelete, onToggleFavorite, onTogg
 
                         <DropdownMenuItem
                             className="gap-3 py-2.5 rounded-lg cursor-pointer text-destructive focus:text-destructive font-medium"
-                            onSelect={(e) => { e.preventDefault(); onDelete(notebook.id, notebook.title); }}
+                            onClick={(e) => { e.stopPropagation(); e.preventDefault(); onDelete(notebook.id, notebook.title); }}
                         >
                             <Trash2 className="h-4 w-4" /> Delete
                         </DropdownMenuItem>

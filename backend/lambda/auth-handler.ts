@@ -27,23 +27,32 @@ export const handler = async (event: APIGatewayRequestAuthorizerEvent): Promise<
     const apiKey = event.headers?.['x-api-key'] || event.headers?.['X-Api-Key'] || event.headers?.['x-api-key'.toLowerCase()];
 
     try {
-        // 1. Check for Cognito JWT
+        // 1. Check for Cognito JWT (or API Key in Authorization header)
         if (authHeader) {
-            const token = authHeader.replace('Bearer ', '');
-            const payload = await jwtVerifier.verify(token);
-            console.log(`Validated Cognito token for user: ${payload.sub}`);
-            const resourceParts = event.methodArn.split(':');
-            const apiGatewayArnPart = resourceParts[5].split('/');
-            const apiId = apiGatewayArnPart[0];
-            const stage = apiGatewayArnPart[1];
+            const token = authHeader.replace('Bearer ', '').trim();
             
-            // Allow all methods and paths for this API/Stage
-            const wildcardResource = `arn:aws:execute-api:${resourceParts[3]}:${resourceParts[4]}:${apiId}/${stage}/*/*`;
+            // Heuristic: Cognito JWTs are very long (>500 chars) and contain dots.
+            // API Keys are shorter (64 chars) hex strings.
+            if (token.includes('.') && token.length > 500) {
+                const payload = await jwtVerifier.verify(token);
+                console.log(`Validated Cognito token for user: ${payload.sub}`);
+                return grantAccess(event, payload.sub as string);
+            } else {
+                // Treat as API Key in Authorization header
+                const result = await docClient.send(new GetCommand({
+                    TableName: TABLE_NAME,
+                    Key: { apiKey: token },
+                }));
 
-            return generatePolicy(payload.sub as string, 'Allow', wildcardResource, payload.sub as string);
+                if (result.Item) {
+                    const userId = result.Item.userId;
+                    console.log(`Validated API key (via Auth header) for user: ${userId}`);
+                    return grantAccess(event, userId);
+                }
+            }
         }
 
-        // 2. Check for API Key
+        // 2. Check for x-api-key (Fallback, though won't trigger APIG if Auth header is missing)
         if (apiKey) {
             const result = await docClient.send(new GetCommand({
                 TableName: TABLE_NAME,
@@ -52,15 +61,8 @@ export const handler = async (event: APIGatewayRequestAuthorizerEvent): Promise<
 
             if (result.Item) {
                 const userId = result.Item.userId;
-                console.log(`Validated API key for user: ${userId}`);
-                
-                const resourceParts = event.methodArn.split(':');
-                const apiGatewayArnPart = resourceParts[5].split('/');
-                const apiId = apiGatewayArnPart[0];
-                const stage = apiGatewayArnPart[1];
-                const wildcardResource = `arn:aws:execute-api:${resourceParts[3]}:${resourceParts[4]}:${apiId}/${stage}/*/*`;
-
-                return generatePolicy(userId, 'Allow', wildcardResource, userId);
+                console.log(`Validated API key (via x-api-key) for user: ${userId}`);
+                return grantAccess(event, userId);
             }
         }
 
@@ -72,6 +74,18 @@ export const handler = async (event: APIGatewayRequestAuthorizerEvent): Promise<
     }
 };
 
+const grantAccess = (event: APIGatewayRequestAuthorizerEvent, userId: string): APIGatewayAuthorizerResult => {
+    const resourceParts = event.methodArn.split(':');
+    const apiGatewayArnPart = resourceParts[5].split('/');
+    const apiId = apiGatewayArnPart[0];
+    const stage = apiGatewayArnPart[1];
+    
+    // Allow all methods and paths for this API/Stage
+    const wildcardResource = `arn:aws:execute-api:${resourceParts[3]}:${resourceParts[4]}:${apiId}/${stage}/*/*`;
+
+    return generatePolicy(userId, 'Allow', wildcardResource, userId);
+};
+
 const generatePolicy = (principalId: string, effect: 'Allow' | 'Deny', resource: string, userId: string): APIGatewayAuthorizerResult => {
     return {
         principalId,
@@ -81,7 +95,7 @@ const generatePolicy = (principalId: string, effect: 'Allow' | 'Deny', resource:
                 {
                     Action: 'execute-api:Invoke',
                     Effect: effect,
-                    Resource: resource, // In production, consider wildcarding or scoping
+                    Resource: resource, 
                 },
             ],
         },
