@@ -14,9 +14,14 @@ cdk.Tags.of(app).add('Application', 'Notebook');
 
 const region = process.env.COGNITO_REGION || 'us-west-2';
 const userPoolId = process.env.COGNITO_USER_POOL_ID;
+const userPoolClientId = process.env.COGNITO_USER_POOL_CLIENT_ID;
 
 if (!userPoolId) {
   throw new Error('COGNITO_USER_POOL_ID environment variable is required');
+}
+
+if (!userPoolClientId) {
+  throw new Error('COGNITO_USER_POOL_CLIENT_ID environment variable is required');
 }
 
 const dataStack = new NotebookDataStack(app, 'NotebookDataStack', {
@@ -29,7 +34,7 @@ new NotebookApiStack(app, 'NotebookApiStack', {
   apiKeyTable: dataStack.apiKeyTable,
   contentBucket: dataStack.contentBucket,
   userPoolId: userPoolId,
-  userPoolClientId: process.env.COGNITO_USER_POOL_CLIENT_ID,
+  userPoolClientId: userPoolClientId,
 });
 
 new NotebookBackupStack(app, 'NotebookBackupStack', {

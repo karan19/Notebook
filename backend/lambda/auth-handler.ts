@@ -7,8 +7,14 @@ const ddbClient = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(ddbClient);
 const TABLE_NAME = process.env.API_KEY_TABLE_NAME!;
 const USER_POOL_ID = process.env.USER_POOL_ID!;
-const CLIENT_ID = process.env.CLIENT_ID!;
+const CLIENT_ID = process.env.CLIENT_ID || null; // null = skip clientId check (safe fallback)
 
+if (!CLIENT_ID) {
+    console.warn('[AuthHandler] WARNING: CLIENT_ID env var is not set. Cognito JWT clientId validation will be skipped.');
+}
+
+// clientId: null tells aws-jwt-verify to skip the aud/client_id claim check.
+// Signature, expiry, issuer, and tokenUse are still fully verified.
 const jwtVerifier = CognitoJwtVerifier.create({
     userPoolId: USER_POOL_ID,
     tokenUse: 'id',

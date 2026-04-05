@@ -12,12 +12,16 @@ interface NotebookApiStackProps extends cdk.StackProps {
   apiKeyTable: dynamodb.Table;
   contentBucket: s3.Bucket;
   userPoolId: string;
-  userPoolClientId?: string;
+  userPoolClientId: string; // Required — CDK will throw if missing
 }
 
 export class NotebookApiStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: NotebookApiStackProps) {
     super(scope, id, props);
+
+    if (!props.userPoolClientId) {
+      throw new Error('NotebookApiStack: userPoolClientId is required. Set COGNITO_USER_POOL_CLIENT_ID env var before running cdk deploy.');
+    }
 
     // Import existing User Pool
     const userPool = cognito.UserPool.fromUserPoolId(this, 'UserPool', props.userPoolId);
@@ -28,7 +32,7 @@ export class NotebookApiStack extends cdk.Stack {
       environment: {
         API_KEY_TABLE_NAME: props.apiKeyTable.tableName,
         USER_POOL_ID: props.userPoolId,
-        CLIENT_ID: props.userPoolClientId || '',
+        CLIENT_ID: props.userPoolClientId,
       },
       bundling: {
         minify: true,
