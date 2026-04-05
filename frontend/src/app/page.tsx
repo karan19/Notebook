@@ -210,14 +210,19 @@ export default function Dashboard() {
   const { fire: fireConfetti } = useConfetti();
 
   const handleCreateFirst = useCallback(async () => {
-    try {
-      const id = await addNotebook();
-      fireConfetti({ particleCount: 60 });
-      toast.success("Notebook created!", { description: "Start writing your thoughts..." });
-      router.push(`/notebooks/${id}`);
-    } catch (e) {
-      toast.error("Failed to create notebook", { description: "Please try again." });
-    }
+    toast.promise(
+        (async () => {
+            const id = await addNotebook();
+            fireConfetti({ particleCount: 60 });
+            router.push(`/notebooks/${id}`);
+            return id;
+        })(),
+        {
+            loading: 'Creating new notebook...',
+            success: 'Notebook created',
+            error: 'Failed to create notebook'
+        }
+    );
   }, [addNotebook, fireConfetti, router]);
 
   const handleDelete = useCallback((notebookId: string, notebookTitle: string) => {

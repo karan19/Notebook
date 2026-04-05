@@ -10,6 +10,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { motion } from "motion/react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { toast } from "sonner";
 
 export const Sidebar = memo(() => {
     const addNotebook = useNotebookStore(state => state.addNotebook);
@@ -37,8 +38,18 @@ export const Sidebar = memo(() => {
     };
 
     const handleCreate = async () => {
-        const id = await addNotebook();
-        router.push(`/notebooks/${id}`);
+        toast.promise(
+            (async () => {
+                const id = await addNotebook();
+                router.push(`/notebooks/${id}`);
+                return id;
+            })(),
+            {
+                loading: 'Creating new notebook...',
+                success: 'Notebook created',
+                error: 'Failed to create notebook'
+            }
+        );
     };
 
     const handleComingSoon = (feature: string) => {

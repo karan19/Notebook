@@ -286,19 +286,25 @@ export function Editor({ id }: EditorProps) {
     };
 
     const handleAddPage = async () => {
-        try {
-            const newPageId = await addPage(id);
-            if (newPageId) {
-                const nb = await getNotebook(id);
-                if (nb) {
-                    const sorted = [...(nb.pages || [])].sort((a, b) => a.order - b.order);
-                    setPages(sorted);
-                    setActivePageId(newPageId); // Jump to new page
+        toast.promise(
+            (async () => {
+                const newPageId = await addPage(id);
+                if (newPageId) {
+                    const nb = await getNotebook(id);
+                    if (nb) {
+                        const sorted = [...(nb.pages || [])].sort((a, b) => a.order - b.order);
+                        setPages(sorted);
+                        setActivePageId(newPageId); 
+                    }
                 }
+                return newPageId;
+            })(),
+            {
+                loading: 'Creating new page...',
+                success: 'New page added',
+                error: 'Failed to create page'
             }
-        } catch (e) {
-            console.error(e);
-        }
+        );
     };
 
 
@@ -308,35 +314,36 @@ export function Editor({ id }: EditorProps) {
         const pageIdToDelete = activePageId;
         const pageTitle = pages.find(p => p.id === pageIdToDelete)?.title || "Page";
 
-        try {
-            setSaveStatus('saving');
+        toast.promise(
+            (async () => {
+                setSaveStatus('saving');
 
-            // 1. Move to another page first (UI immediate update)
-            const remainingPages = pages.filter(p => p.id !== pageIdToDelete);
-            if (remainingPages.length > 0) {
-                // Find next page or previous page
-                const currentIndex = pages.findIndex(p => p.id === pageIdToDelete);
-                const nextActiveId = remainingPages[currentIndex] ? remainingPages[currentIndex].id : remainingPages[remainingPages.length - 1].id;
-                setActivePageId(nextActiveId);
+                // 1. Move to another page first (UI immediate update)
+                const remainingPages = pages.filter(p => p.id !== pageIdToDelete);
+                if (remainingPages.length > 0) {
+                    const currentIndex = pages.findIndex(p => p.id === pageIdToDelete);
+                    const nextActiveId = remainingPages[currentIndex] ? remainingPages[currentIndex].id : remainingPages[remainingPages.length - 1].id;
+                    setActivePageId(nextActiveId);
+                }
+
+                // 2. Perform HARD DELETE
+                await deletePage(id, pageIdToDelete);
+                
+                setSaveStatus('idle');
+
+                // 3. Refresh notebook
+                const nb = await getNotebook(id);
+                if (nb) {
+                    const sorted = [...(nb.pages || [])].sort((a, b) => a.order - b.order);
+                    setPages(sorted);
+                }
+            })(),
+            {
+                loading: `Deleting ${pageTitle}...`,
+                success: `${pageTitle} deleted`,
+                error: 'Failed to delete page'
             }
-
-            // 2. Perform HARD DELETE (S3 + DynamoDB)
-            await deletePage(id, pageIdToDelete);
-            
-            setSaveStatus('idle');
-            toast.success(`${pageTitle} deleted permanently`);
-
-            // 3. Refresh notebook to ensure local state is perfect
-            const nb = await getNotebook(id);
-            if (nb) {
-                const sorted = [...(nb.pages || [])].sort((a, b) => a.order - b.order);
-                setPages(sorted);
-            }
-        } catch (e) {
-            console.error("Delete failed", e);
-            toast.error("Failed to delete page");
-            setSaveStatus('error');
-        }
+        );
     };
 
 
@@ -388,7 +395,8 @@ export function Editor({ id }: EditorProps) {
                             >
                                 {/* Page content loading overlay */}
                                 <div className={cn(
-                                    "absolute inset-0 z-40 content-overlay opacity-0",
+                                    "absolute inset-0 z-40 content-overlay opacity-0 transition-opacity duration-300 pointer-events-none",
+                                    isContentLoading && "opacity-100 pointer-events-auto"
                                 )}>
                                     <ContentLoadingOverlay />
                                 </div>
