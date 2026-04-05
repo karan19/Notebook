@@ -62,52 +62,74 @@ export const FullPageSpinner = ({ message = "Loading..." }: FullPageSpinnerProps
     );
 };
 
-// Editor skeleton for initial notebook load
+// Editor skeleton for initial notebook load with shimmer effect
 export function EditorSkeleton() {
     return (
         <div className="flex w-full h-full bg-[#f8f9fa] dark:bg-gray-950">
             <main className="flex-1 flex flex-col h-full overflow-hidden">
-                <div className="flex-1 overflow-y-auto pb-32">
+                <div className="flex-1 overflow-y-auto pb-32 scroll-smooth">
                     <div className="max-w-6xl mx-auto px-4 py-8 min-h-screen flex items-start justify-center">
                         <div className="flex-1 min-w-0 max-w-6xl">
                             {/* Back button skeleton */}
                             <div className="mb-4">
-                                <div className="h-5 w-24 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+                                <div className="h-5 w-24 rounded skeleton-shimmer" />
                             </div>
 
-                            {/* Paper sheet skeleton */}
-                            <div className="bg-white dark:bg-gray-900 shadow-[0_0_50px_rgba(0,0,0,0.04)] dark:shadow-[0_0_50px_rgba(0,0,0,0.3)] border border-gray-100 dark:border-gray-800 rounded-sm min-h-[1100px] flex flex-col">
+                            {/* Paper sheet skeleton with subtle entrance animation */}
+                            <motion.div
+                                initial={{ opacity: 0, y: 12 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.4, ease: "easeOut" }}
+                                className="bg-white dark:bg-gray-900 shadow-[0_0_50px_rgba(0,0,0,0.04)] dark:shadow-[0_0_50px_rgba(0,0,0,0.3)] border border-gray-100 dark:border-gray-800 rounded-sm min-h-[1100px] flex flex-col"
+                            >
                                 {/* Header skeleton */}
                                 <div className="px-8 pt-6 pb-2 border-b border-gray-50/50 dark:border-gray-800">
-                                    <div className="h-9 w-64 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse mb-3" />
+                                    <div className="h-9 w-64 rounded-lg skeleton-shimmer mb-3" />
                                     <div className="flex gap-2">
-                                        <div className="h-5 w-16 bg-gray-50 dark:bg-gray-800 rounded animate-pulse" />
-                                        <div className="h-5 w-20 bg-gray-50 dark:bg-gray-800 rounded animate-pulse" />
+                                        <div className="h-5 w-16 rounded skeleton-shimmer" />
+                                        <div className="h-5 w-20 rounded skeleton-shimmer" />
                                     </div>
                                 </div>
 
-                                {/* Content skeleton */}
+                                {/* Content skeleton with staggered lines */}
                                 <div className="px-8 pt-6 pb-12 flex-1 space-y-4">
                                     {[...Array(8)].map((_, i) => (
-                                        <div key={i} className="space-y-2" style={{ opacity: 1 - i * 0.1 }}>
+                                        <motion.div
+                                            key={i}
+                                            initial={{ opacity: 0, x: -8 }}
+                                            animate={{ opacity: 1 - i * 0.08, x: 0 }}
+                                            transition={{ duration: 0.3, delay: i * 0.05, ease: "easeOut" }}
+                                            className="space-y-2"
+                                        >
                                             <div
-                                                className="h-4 bg-gray-100 dark:bg-gray-800 rounded animate-pulse"
-                                                style={{ width: `${85 - i * 5}%`, animationDelay: `${i * 0.1}s` }}
+                                                className="h-4 rounded skeleton-shimmer"
+                                                style={{ width: `${90 - (i % 3) * 8}%` }}
                                             />
-                                        </div>
+                                            {i % 3 === 0 && (
+                                                <div
+                                                    className="h-4 rounded skeleton-shimmer"
+                                                    style={{ width: `${75 - i * 2}%` }}
+                                                />
+                                            )}
+                                        </motion.div>
                                     ))}
-                                    <div className="pt-4 space-y-2">
-                                        <div className="h-6 w-48 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />
+                                    <motion.div
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        transition={{ delay: 0.4 }}
+                                        className="pt-4 space-y-2"
+                                    >
+                                        <div className="h-6 w-48 rounded skeleton-shimmer" />
                                         {[...Array(4)].map((_, i) => (
                                             <div
                                                 key={`p2-${i}`}
-                                                className="h-4 bg-gray-100 dark:bg-gray-800 rounded animate-pulse"
-                                                style={{ width: `${90 - i * 8}%`, animationDelay: `${(i + 8) * 0.1}s` }}
+                                                className="h-4 rounded skeleton-shimmer"
+                                                style={{ width: `${88 - i * 10}%` }}
                                             />
                                         ))}
-                                    </div>
+                                    </motion.div>
                                 </div>
-                            </div>
+                            </motion.div>
                         </div>
                     </div>
                 </div>
@@ -117,11 +139,11 @@ export function EditorSkeleton() {
                     <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
                         <div className="w-8" />
                         <div className="flex items-center gap-4">
-                            <div className="h-5 w-5 bg-gray-100 dark:bg-gray-800 rounded-full animate-pulse" />
-                            <div className="h-4 w-24 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />
-                            <div className="h-5 w-5 bg-gray-100 dark:bg-gray-800 rounded-full animate-pulse" />
+                            <div className="h-5 w-5 rounded-full skeleton-shimmer" />
+                            <div className="h-4 w-24 rounded skeleton-shimmer" />
+                            <div className="h-5 w-5 rounded-full skeleton-shimmer" />
                         </div>
-                        <div className="h-9 w-28 bg-gray-100 dark:bg-gray-800 rounded-md animate-pulse" />
+                        <div className="h-9 w-28 rounded-md skeleton-shimmer" />
                     </div>
                 </div>
             </main>
