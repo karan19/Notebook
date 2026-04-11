@@ -16,6 +16,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/sonner";
 import { QuickSwitcher } from "@/components/ui/quick-switcher";
 import { useConfetti } from "@/components/ui/confetti";
+import JSZip from "jszip";
+import { CheckCircle2, DownloadCloud } from "lucide-react";
 
 import {
   DropdownMenu,
@@ -50,9 +52,11 @@ interface NotebookCardProps {
   onTogglePin: (id: string, isPinned: boolean) => void;
   onDuplicate: (id: string, title: string) => void;
   onAddToRecent: (id: string) => void;
+  isSelected: boolean;
+  onToggleSelect: (id: string) => void;
 }
 
-const NotebookCard = memo(({ notebook, index, onDelete, onToggleFavorite, onTogglePin, onDuplicate, onAddToRecent }: NotebookCardProps) => {
+const NotebookCard = memo(({ notebook, index, onDelete, onToggleFavorite, onTogglePin, onDuplicate, onAddToRecent, isSelected, onToggleSelect }: NotebookCardProps) => {
     const router = useRouter();
 
     const handleNavigate = () => {
@@ -70,9 +74,23 @@ const NotebookCard = memo(({ notebook, index, onDelete, onToggleFavorite, onTogg
                 ease: "easeOut"
             }}
             onClick={handleNavigate}
-            className="relative flex flex-col h-full bg-card/60 backdrop-blur-xl border border-border/50 rounded-2xl p-4 transition-all group cursor-pointer card-hover"
+            className={cn(
+                "relative flex flex-col h-full bg-card/60 backdrop-blur-xl border rounded-2xl p-4 transition-all group cursor-pointer card-hover",
+                isSelected ? "border-blue-500/50 bg-blue-50/10 dark:bg-blue-900/10 ring-1 ring-blue-500/20" : "border-border/50"
+            )}
         >
             <div className="absolute top-4 right-4 z-10 flex items-center gap-1">
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleSelect(notebook.id); }}
+                    className={cn(
+                        "h-8 w-8 rounded-lg transition-all",
+                        isSelected ? "text-blue-500 bg-blue-100/50 dark:bg-blue-500/20" : "text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-gray-700"
+                    )}
+                >
+                    <CheckCircle2 className={cn("h-4 w-4", isSelected && "fill-current")} />
+                </Button>
                 <Button
                     variant="ghost"
                     size="icon"
@@ -177,6 +195,8 @@ export default function Dashboard() {
   const router = useRouter();
   const [searchFocused, setSearchFocused] = useState(false);
   const [isQuickSwitcherOpen, setIsQuickSwitcherOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     fetchNotebooks();
@@ -261,6 +281,57 @@ export default function Dashboard() {
   const handleAddToRecent = useCallback((id: string) => {
     addToRecent(id);
   }, [addToRecent]);
+  
+  const handleToggleSelect = useCallback((id: string) => {
+    setSelectedIds(prev => 
+        prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  }, []);
+
+  const handleExportSelected = useCallback(async () => {
+    if (selectedIds.length === 0) return;
+    
+    setExporting(true);
+    const { loadContent, getNotebook } = useNotebookStore.getState();
+    const zip = new JSZip();
+
+    try {
+        toast.loading(`Preparing export for ${selectedIds.length} notebooks...`, { id: 'export' });
+        
+        for (const id of selectedIds) {
+            const nb = await getNotebook(id);
+            if (!nb) continue;
+
+            const notebookFolder = zip.folder(nb.title.replace(/[^a-z0-9]/gi, '_'));
+            if (!notebookFolder) continue;
+
+            // Load all pages
+            for (const page of nb.pages) {
+                const content = await loadContent(nb.id, page.id);
+                const fileName = `${(page.title || 'Untitled').replace(/[^a-z0-9]/gi, '_')}.md`;
+                notebookFolder.file(fileName, content);
+            }
+        }
+
+        const content = await zip.generateAsync({ type: "blob" });
+        const url = URL.createObjectURL(content);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `notebooks_export_${new Date().toISOString().split('T')[0]}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        toast.success(`Exported ${selectedIds.length} notebooks successfully!`, { id: 'export' });
+        setSelectedIds([]);
+    } catch (error) {
+        console.error("Export failed", error);
+        toast.error("Failed to export notebooks", { id: 'export' });
+    } finally {
+        setExporting(false);
+    }
+  }, [selectedIds]);
 
   const filteredNotebooks = useMemo(() => {
     let result = notebooks.filter(nb => {
@@ -328,6 +399,28 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center gap-4 ml-auto">
+            <AnimatePresence>
+                {selectedIds.length > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9, x: 20 }}
+                        animate={{ opacity: 1, scale: 1, x: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, x: 20 }}
+                    >
+                        <Button 
+                            onClick={handleExportSelected}
+                            disabled={exporting}
+                            className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl gap-2 px-4 shadow-lg shadow-blue-500/20"
+                        >
+                            {exporting ? (
+                                <RotateCw className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <DownloadCloud className="h-4 w-4" />
+                            )}
+                            <span>Export ({selectedIds.length})</span>
+                        </Button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
             {loading && notebooks.length > 0 && (
               <div className="flex items-center gap-2 text-[10px] font-medium text-muted-foreground animate-pulse mr-2">
                 <RotateCw className="h-3 w-3 animate-spin" />
@@ -457,6 +550,8 @@ export default function Dashboard() {
                   onTogglePin={handleTogglePin}
                   onDuplicate={handleDuplicate}
                   onAddToRecent={handleAddToRecent}
+                  isSelected={selectedIds.includes(notebook.id)}
+                  onToggleSelect={handleToggleSelect}
                 />
               ))}
             </div>
