@@ -335,7 +335,7 @@ export const useNotebookStore = create<NotebookStore>()(
                     await fetch(url, {
                         method: 'PUT',
                         body: stableHtml,
-                        headers: { 'Content-Type': 'text/html' }
+                        headers: { 'Content-Type': 'text/markdown' }
                     });
 
                     // 4. Update snippet (first 100 chars)
@@ -500,7 +500,7 @@ export const useNotebookStore = create<NotebookStore>()(
                 const pageId = crypto.randomUUID();
                 const newPage: Page = {
                     id: pageId,
-                    contentKey: `notes/${notebookId}/${pageId}.html`,
+                    contentKey: `notes/${notebookId}/${pageId}.md`,
                     order: notebook.pages ? notebook.pages.length : 0,
                     title: `Page ${(notebook.pages?.length || 0) + 1}`
                 };

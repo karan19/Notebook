@@ -206,19 +206,16 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
                 if (getResult.Item && getResult.Item.userId === userId) {
                     const pages = getResult.Item.pages || [];
                     
-                    // 2. Delete all page files from S3 (Try both .md and .html for cleanup)
+                    // 2. Delete all page files from S3
                     for (const page of pages) {
-                        const extensions = ['.md', '.html'];
-                        for (const ext of extensions) {
-                            const s3Key = `notes/${userId}/${id}/${page.id}${ext}`;
-                            try {
-                                await s3Client.send(new DeleteObjectCommand({
-                                    Bucket: BUCKET_NAME,
-                                    Key: s3Key,
-                                }));
-                            } catch (s3Err) {
-                                // Silent fail if file doesn't exist
-                            }
+                        const s3Key = `notes/${userId}/${id}/${page.id}.md`;
+                        try {
+                            await s3Client.send(new DeleteObjectCommand({
+                                Bucket: BUCKET_NAME,
+                                Key: s3Key,
+                            }));
+                        } catch (s3Err) {
+                            // Silent fail if file doesn't exist
                         }
                     }
                 }
@@ -259,18 +256,15 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
                 return { statusCode: 403, headers, body: JSON.stringify({ message: 'Forbidden' }) };
             }
 
-            // 2. Delete the file from S3 (Try both .md and .html)
-            const extensions = ['.md', '.html'];
-            for (const ext of extensions) {
-                const s3Key = `notes/${userId}/${id}/${pageId}${ext}`;
-                try {
-                    await s3Client.send(new DeleteObjectCommand({
-                        Bucket: BUCKET_NAME,
-                        Key: s3Key,
-                    }));
-                } catch (s3Err) {
-                    // Ignore non-existent files
-                }
+            // 2. Delete the file from S3
+            const s3Key = `notes/${userId}/${id}/${pageId}.md`;
+            try {
+                await s3Client.send(new DeleteObjectCommand({
+                    Bucket: BUCKET_NAME,
+                    Key: s3Key,
+                }));
+            } catch (s3Err) {
+                // Ignore non-existent files
             }
 
             // 3. Remove the page from the DynamoDB list
@@ -320,24 +314,12 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             if (!id || !pageId) throw new Error('Notebook ID and Page ID are required');
 
             // Enforce user namespace in Key
-            // Dual lookup: check for .md first, fallback to .html
-            let key = `notes/${userId}/${id}/${pageId}.md`;
-            try {
-                await s3Client.send(new HeadObjectCommand({
-                    Bucket: BUCKET_NAME,
-                    Key: key,
-                }));
-            } catch (err) {
-                // Fallback to legacy extension
-                key = `notes/${userId}/${id}/${pageId}.html`;
-            }
-
+            const key = `notes/${userId}/${id}/${pageId}.md`;
             const command = new GetObjectCommand({
                 Bucket: BUCKET_NAME,
                 Key: key,
             });
             const url = await getSignedUrl(s3Client, command, { expiresIn: 300 });
-
             return { statusCode: 200, headers, body: JSON.stringify({ url }) };
         }
 
