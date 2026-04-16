@@ -1,2 +1,4 @@
 node_modules
-backend/.npm-cache
+backend/.npm-cacheNotebookData
+ProcessedData/
+scripts/
