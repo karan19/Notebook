@@ -13,7 +13,7 @@ The **Notebook Skill System** is a high-fidelity, atomic documentation framework
 ## 🔑 Authentication (Agent Protocol)
 The OpenClaw system interfaces with the backend strictly via the **API Key** path. 
 
-- **Header**: `x-api-key: <PROJECT_API_KEY>`
+- **Header**: `Authorization: <PROJECT_API_KEY>`
 - **Validation**: The backend extracts the `userId` from the key association to ensure isolated data access.
 
 ---
@@ -24,18 +24,18 @@ Use these verbatim templates for the **OpenClaw** integration. Replace `<KEY>` w
 ### 1. List All Workspaces
 Find the `id` of the notebook you want to sync to.
 ```bash
-curl -H "x-api-key: <KEY>" \
+curl -H "Authorization: <KEY>" \
      "https://80r4fpe4ac.execute-api.us-west-2.amazonaws.com/prod/notebooks"
 ```
 
 ### 2. Create a New Notebook
 ```bash
-curl -X POST -H "x-api-key: <KEY>" -H "Content-Type: application/json" \
+curl -X POST -H "Authorization: <KEY>" -H "Content-Type: application/json" \
      -d '{"title": "OpenClaw Intelligence Feed"}' \
      "https://80r4fpe4ac.execute-api.us-west-2.amazonaws.com/prod/notebooks"
 ```
 
-curl -H "x-api-key: <KEY>" \
+curl -H "Authorization: <KEY>" \
      "https://80r4fpe4ac.execute-api.us-west-2.amazonaws.com/prod/notebooks/urls/upload?id=<NB_ID>&pageId=<PAGE_UUID>"
 ```
 
@@ -50,14 +50,14 @@ curl -X PUT -H "Content-Type: text/markdown" \
 **Step 3: Register Metadata**
 *Update the existing notebook object's `pages` array.*
 ```bash
-curl -X PATCH -H "x-api-key: <KEY>" -H "Content-Type: application/json" \
+curl -X PATCH -H "Authorization: <KEY>" -H "Content-Type: application/json" \
      -d '{"pages": [{"id": "<PAGE_UUID>", "title": "Protocol Insight", "order": 0}]}' \
      "https://80r4fpe4ac.execute-api.us-west-2.amazonaws.com/prod/notebooks/<NB_ID>"
 ```
 
 ### 4. Hard Delete a Page
 ```bash
-curl -X DELETE -H "x-api-key: <KEY>" \
+curl -X DELETE -H "Authorization: <KEY>" \
      "https://80r4fpe4ac.execute-api.us-west-2.amazonaws.com/prod/notebooks/<NB_ID>/pages/<PAGE_ID>"
 ```
 
